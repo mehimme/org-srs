@@ -1,4 +1,4 @@
-;;; org-srs-algorithm-fsrs.el --- The FSRS algorithm integration for Org-srs -*- lexical-binding:t -*-
+;;; org-srs-algorithm-fsrs.el --- Integration of the FSRS algorithm for Org-srs -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
 
