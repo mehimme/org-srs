@@ -40,9 +40,11 @@
   :prefix "org-srs-item-card-")
 
 (cl-defmethod org-srs-item-review ((_type null) &rest args)
+  "Method to set the default item type to `card' with ARGS passed as is."
   (apply #'org-srs-item-review 'card args))
 
 (defun org-srs-item-card-regions ()
+  "Return the front and back regions of the current flashcard as cons cells."
   (cl-flet ((org-entry-end-position (&aux (position (org-entry-end-position)))
               (if (= position (point-max)) (1+ position) position)))
     (let ((initalp t) (front nil) (back nil))
@@ -58,7 +60,7 @@
        nil 'tree)
       (let ((heading (save-excursion
                        (org-back-to-heading)
-                       (cons (point) (pos-eol))))
+                       (cons (point) (line-end-position))))
             (content (cons
                       (save-excursion
                         (org-end-of-meta-data t)
@@ -73,14 +75,17 @@
             (cl-values heading content)))))))
 
 (defun org-srs-item-card-put-ellipsis-overlay (start end)
+  "Create an overlay from START to END that displays as ellipsis."
   (let ((overlay (make-overlay start end nil 'front-advance)))
     (overlay-put overlay 'category 'org-srs-item-card)
     (overlay-put overlay 'display "...")))
 
 (cl-defun org-srs-item-card-remove-ellipsis-overlays (&optional (start (point-min)) (end (point-max)))
+  "Remove all ellipsis overlays in the current buffer or between START and END."
   (remove-overlays start (1+ end) 'category 'org-srs-item-card))
 
 (defun org-srs-item-card-show ()
+  "Show the current flashcard entirely by unfolding the text and removing ellipses."
   (save-excursion
     (org-fold-show-subtree)
     (org-end-of-subtree)
@@ -88,6 +93,7 @@
      (org-entry-beginning-position) (point))))
 
 (cl-defun org-srs-item-card-hide (&optional (side :back))
+  "Hide either the front or back SIDE of the current flashcard."
   (org-srs-item-card-show)
   (cl-ecase side
     (:front
@@ -108,6 +114,7 @@
          (org-srs-item-card-put-ellipsis-overlay beg end))))))
 
 (cl-defmethod org-srs-item-review ((type (eql 'card)) &rest args)
+  "Method to review an item of TYPE `card' with ARGS."
   (cl-destructuring-bind (&optional (side 'front)) args
     (org-srs-item-narrow)
     (org-srs-item-card-hide (cl-ecase side (front :back) (back :front)))
@@ -115,14 +122,17 @@
     (apply (org-srs-item-confirm) type args)))
 
 (cl-defmethod org-srs-item-new ((_type (eql 'card)) &rest args)
+  "Method for creating a new flashcard with ARGS."
   (apply #'org-srs-item-new nil args))
 
 (cl-defmethod org-srs-item-new ((_type (eql 'card-reversible)) &rest args)
+  "Method for creating a reversible flashcard with ARGS."
   (cl-assert (null args))
   (org-srs-item-new '(card front))
   (org-srs-item-new '(card back)))
 
 (cl-defmethod org-srs-item-new ((_type (eql 'card-reversed)) &rest args)
+  "Method for creating a reversed flashcard with ARGS."
   (cl-assert (null args))
   (org-srs-item-new '(card back)))
 

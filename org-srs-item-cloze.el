@@ -46,9 +46,11 @@
 (defconst org-srs-item-cloze-regexp
   (rx "{{" (group (*? not-newline))
       "}{" (group (*? not-newline))
-      (or "}}" (and "}{" (group (*? not-newline)) "}}"))))
+      (or "}}" (and "}{" (group (*? not-newline)) "}}")))
+  "Regular expression for matching the cloze deletion syntax of Org-srs.")
 
 (cl-defun org-srs-item-cloze-collect (&optional (start (point-min)) (end (point-max)))
+  "Collect cloze deletions between START and END."
   (save-excursion
     (goto-char start)
     (cl-loop while (re-search-forward org-srs-item-cloze-regexp end t)
@@ -63,17 +65,21 @@
   :type 'boolean)
 
 (defun org-srs-item-cloze-string-pad-width (string width)
+  "Pad STRING with spaces to make it WIDTH characters wide."
   (concat string (make-string (- width (string-width string)) ? )))
 
 (defun org-srs-item-cloze-pom-at-table-p (point-or-marker)
+  "Return non-nil if POINT-OR-MARKER is inside an Org table."
   (save-excursion
     (goto-char point-or-marker)
     (org-at-table-p)))
 
 (defun org-srs-item-cloze-overlay-text (overlay)
+  "Return the display text property from OVERLAY."
   (overlay-get overlay 'display))
 
 (defun \(setf\ org-srs-item-cloze-overlay-text\) (text overlay)
+  "Set the display text of OVERLAY to TEXT."
   (overlay-put
    overlay 'display
    (if (org-srs-item-cloze-pom-at-table-p (overlay-start overlay))
@@ -82,6 +88,7 @@
      text)))
 
 (cl-defun org-srs-item-cloze-put-overlay (start end &optional (text ""))
+  "Create a new cloze overlay from START to END with TEXT."
   (cl-check-type text string)
   (let ((overlay (make-overlay start end)))
     (overlay-put overlay 'category 'org-srs-item-cloze)
@@ -91,27 +98,38 @@
 (cl-defun org-srs-item-cloze-remove-overlays (&optional
                                               (start (org-entry-beginning-position))
                                               (end (org-entry-end-position)))
+  "Remove all cloze overlays between START and END."
   (remove-overlays start end 'category 'org-srs-item-cloze))
 
 (defun org-srs-item-cloze-current (&optional hint)
+  "Return the text displayed in the overlay of a cloze deletion being answered.
+
+HINT is an optional string shown between brackets to help with the answer."
   (concat
    (propertize "[..." 'face 'bold)
    (or hint "")
    (propertize "]" 'face 'bold)))
 
 (defun org-srs-item-cloze-hidden (&optional text)
+  "Return the text displayed in overlays of cloze deletions not being answered.
+
+TEXT is an optional string shown between brackets to indicate hidden content."
   (concat
    (propertize "[" 'face 'bold)
    (or text "   ")
    (propertize "]" 'face 'bold)))
 
 (defun org-srs-item-cloze-answer (text)
+  "Return the text showing the answer in the overlay of a cloze deletion.
+
+TEXT is the string containing the answer to be shown between brackets."
   (concat
    (propertize "[" 'face 'bold)
    text
    (propertize "]" 'face 'bold)))
 
 (defun org-srs-item-cloze-recenter-horizontally ()
+  "Adjust the window's horizontal scroll to center the point position."
   (let ((offset (- (current-column) (truncate (window-width) 2))))
     (set-window-hscroll (selected-window) (max offset 0))))
 
@@ -121,6 +139,7 @@
   :type '(choice boolean function))
 
 (cl-defmethod org-srs-item-review ((type (eql 'cloze)) &rest args)
+  "Method to review an item of TYPE `cloze' with ARGS."
   (cl-loop with visibility = (org-srs-item-cloze-visibility) and cloze-id-set = args
            initially (org-srs-item-cloze-remove-overlays)
            for cloze in (progn (org-srs-item-narrow) (org-srs-item-cloze-collect))
@@ -152,9 +171,11 @@
            (apply (org-srs-item-confirm) type args)))
 
 (defun org-srs-item-cloze-identifier-sha1sum-short (content)
+  "Return a short SHA1 hash of CONTENT as an interned symbol identifier."
   (intern (substring-no-properties (sha1 content) 0 7)))
 
 (defun org-srs-item-cloze-identifier-number-sequence (&optional _content)
+  "Generate a sequence number identifier for the next cloze deletion."
   (cl-loop with (before . after) = (or (org-srs-item-cloze-bounds) (cons (point) (point)))
            for expected from 1
            for (actual) in (cl-sort
@@ -170,6 +191,7 @@
   :type 'function)
 
 (defun org-srs-item-cloze-default (start end &optional hint)
+  "Create a cloze deletion between START and END with optional HINT."
   (save-excursion
     (goto-char end)
     (if hint (insert "}{" hint "}}") (insert "}}"))
@@ -180,19 +202,24 @@
       (funcall (org-srs-item-cloze-identifier) (buffer-substring start end)))
      "}{")))
 
-(defvar org-srs-item-cloze-hint nil)
+(defvar org-srs-item-cloze-hint nil
+  "Default hint text used when creating a cloze deletion.")
 
-(defvar org-srs-item-cloze-function #'org-srs-item-cloze-default)
+(defvar org-srs-item-cloze-function #'org-srs-item-cloze-default
+  "Function to create a new cloze deletion.")
 
 (cl-defgeneric org-srs-item-cloze (type &optional props)
   (:method
    ((type (eql 'paragraph)) &optional props)
+   "Method to create a cloze deletion for an element of TYPE `paragraph' with PROPS."
    (let* ((element (list type props))
           (start (org-element-begin element))
           (end (org-element-end element)))
-     (funcall org-srs-item-cloze-function start end org-srs-item-cloze-hint))))
+     (funcall org-srs-item-cloze-function start end org-srs-item-cloze-hint)))
+  (:documentation "Create cloze deletions for the element specified by TYPE and PROPS."))
 
 (cl-defun org-srs-item-cloze-region-element (start end &optional (element (org-element-at-point)))
+  "Create a copy of ELEMENT with its boundaries set to START and END."
   (let ((element (org-element-copy element)))
     (setf (org-element-begin element) start
           (org-element-end element) end)
@@ -201,18 +228,27 @@
 (cl-defgeneric org-srs-item-cloze-interactively (type &optional props)
   (:method
    (type &optional props)
+   "Default method to interactively create a cloze deletion.
+
+TYPE and PROPS are passed to `org-srs-item-cloze' as is."
    (org-srs-item-cloze type props))
   (:method
    (type &context ((region-active-p) (eql t)) &optional props)
+   "Method to create a cloze deletion interactively when REGION-ACTIVE-P is t."
    (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element (region-beginning) (region-end) (list type props)))))
   (:method
    (type &context ((region-active-p) (eql nil)) ((bounds-of-thing-at-point 'word) cons) &optional props)
+   "Method to create a cloze deletion interactively when REGION-ACTIVE-P is nil.
+
+BOUNDS-OF-THING-AT-POINT called with `word' must return a cons cell to ensure a
+word is at point."
    (cl-destructuring-bind (start . end) (bounds-of-thing-at-point 'word)
-     (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element start end (list type props)))))))
+     (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element start end (list type props))))))
+  (:documentation "Interactively make cloze deletions for the element specified by TYPE and PROPS."))
 
 ;;;###autoload
 (defun org-srs-item-cloze-dwim ()
-  "Cloze the element at point.
+  "Create cloze deletions at point.
 
 If there is an active region, cloze the region.
 If point is on a word, cloze that word.
@@ -222,10 +258,11 @@ fields."
   (apply #'org-srs-item-cloze-interactively (org-element-at-point)))
 
 (cl-defun org-srs-item-cloze-bounds (&optional (position (point)))
+  "Return the bounds of the cloze deletion at POSITION as a cons cell."
   (save-excursion
     (cl-loop for function in '(re-search-backward re-search-forward)
              for match-bound in '(match-end match-beginning)
-             for line-bound in (list (pos-bol) (pos-eol))
+             for line-bound in (list (line-beginning-position) (line-end-position))
              if (funcall function org-srs-item-cloze-regexp line-bound t)
              if (<= (match-beginning 0) position (1- (match-end 0)))
              return (cons (match-beginning 0) (match-end 0))
@@ -233,38 +270,59 @@ fields."
              else do (goto-char line-bound))))
 
 (cl-defun org-srs-item-uncloze-default (start end)
+  "Remove all cloze deletions between START and END."
   (save-excursion
     (cl-loop initially (goto-char start)
              while (re-search-forward org-srs-item-cloze-regexp end t)
              do (replace-match "\\2" t))))
 
-(defvar org-srs-item-uncloze-function #'org-srs-item-uncloze-default)
+(defvar org-srs-item-uncloze-function #'org-srs-item-uncloze-default
+  "Function used to remove cloze deletions from a region.")
 
 (cl-defgeneric org-srs-item-uncloze (type &optional props)
-  (let* ((element (list type props))
-         (start (org-element-begin element))
-         (end (org-element-end element)))
-    (funcall org-srs-item-uncloze-function start end)))
+  (:method
+   (type &optional props)
+   "Default method to delete cloze deletions for an element of TYPE with PROPS."
+   (let* ((element (list type props))
+          (start (org-element-begin element))
+          (end (org-element-end element)))
+     (funcall org-srs-item-uncloze-function start end)))
+  (:documentation "Delete cloze deletions for the element specified by TYPE and PROPS."))
 
 (cl-defgeneric org-srs-item-uncloze-interactively (type &optional props)
   (:method
    (type &optional props)
+   "Default method to interactively delete a cloze deletion.
+
+TYPE and PROPS are passed to `org-srs-item-uncloze' as is."
    (org-srs-item-uncloze type props))
   (:method
    (type &context ((region-active-p) (eql t)) &optional props)
+   "Method to delete cloze deletions interactively when REGION-ACTIVE-P is t.
+
+TYPE and PROPS are passed to `org-srs-item-uncloze' as is."
    (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element (region-beginning) (region-end) (list type props)))))
   (:method
    (type &context ((region-active-p) (eql nil)) ((org-srs-item-cloze-bounds) cons) &optional props)
+   "Method to delete cloze deletions interactively when REGION-ACTIVE-P is nil.
+
+BOUNDS-OF-THING-AT-POINT called with `word' must return a cons cell to ensure a
+word is at point."
    (cl-destructuring-bind (start . end) (org-srs-item-cloze-bounds)
-     (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element start end (list type props)))))))
+     (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element start end (list type props))))))
+  (:documentation "Interactively delete cloze deletions in the element specified by TYPE and PROPS."))
 
 ;;;###autoload
 (defun org-srs-item-uncloze-dwim ()
-  "Uncloze the element at point. Also see `org-srs-item-cloze-dwim'."
+  "Delete cloze deletions at point. Also see `org-srs-item-cloze-dwim'."
   (interactive)
   (apply #'org-srs-item-uncloze-interactively (org-element-at-point)))
 
 (defun org-srs-item-cloze-update-entry (&optional inherit-history-p)
+  "Update review items for cloze deletions in the current entry.
+
+When INHERIT-HISTORY-P is non-nil, preserve existing review history by
+transferring it to matching cloze items."
   (let* ((start (org-entry-beginning-position))
          (end (org-entry-end-position))
          (items (cl-delete 'cloze (cl-mapcar #'cl-first (org-srs-query '(and) (cons start end))) :key #'car :test-not #'eq))
@@ -341,6 +399,7 @@ delete, or modify a cloze deletion."
   :type 'string)
 
 (cl-defun org-srs-item-cloze-table-fields (&optional (range '(1 . 1)))
+  "Create cloze deletions for fields in an Org table within RANGE."
   (cl-multiple-value-bind (row-start row-end column-start column-end)
       (cl-flet ((ensure-range (object)
                   (cl-typecase object
@@ -387,7 +446,7 @@ delete, or modify a cloze deletion."
                            unless (string-empty-p (org-table-get nil nil))
                            do
                            (org-table-end-of-field 1)
-                           (cl-assert (looking-back (rx (literal field)) (pos-bol)))
+                           (cl-assert (looking-back (rx (literal field)) (line-beginning-position)))
                            (let ((start (match-beginning 0))
                                  (end (match-end 0))
                                  (element (org-element-copy (org-element-at-point))))
@@ -399,27 +458,34 @@ delete, or modify a cloze deletion."
                finally (org-table-align)))))
 
 (cl-defmethod org-srs-item-cloze ((type (eql 'table)) &optional props)
+  "Method to create cloze deletions for an element of TYPE `table' with PROPS."
   (let ((element (list type props)))
     (cl-assert (<= (org-element-begin element) (point) (1- (org-element-end element)))))
   (org-srs-item-cloze-table-fields (org-srs-item-cloze-table-range)))
 
 (cl-defmethod org-srs-item-cloze-interactively ((type (eql 'table)) &optional props)
+  "Method to interactively create cloze deletions for an element of TYPE `table'.
+
+TYPE and PROPS are passed to `org-srs-item-cloze' as is."
   (org-srs-property-let ((org-srs-item-cloze-table-range (read-string "Range: " (org-srs-item-cloze-table-range))))
     (org-srs-item-cloze type props)))
 
 (cl-defmethod org-srs-item-uncloze ((type (eql 'table)) &optional props)
+  "Method to delete cloze deletions for an element of TYPE `table' with PROPS."
   (cl-call-next-method)
   (let ((element (list type props)))
     (cl-assert (<= (org-element-begin element) (point) (1- (org-element-end element)))))
   (org-table-align))
 
 (defun org-srs-item-cloze-item-at-point ()
+  "Return the review item corresponding to the cloze deletion at point."
   (save-excursion
     (goto-char (car (org-srs-item-cloze-bounds)))
     (cl-assert (looking-at org-srs-item-cloze-regexp))
     (list 'cloze (read (match-string 1)))))
 
 (cl-defmethod org-srs-item-new-interactively ((_type (eql 'cloze)) &rest args)
+  "Method for interactively creating a new review item of type `cloze' with ARGS."
   (if args (cl-call-next-method)
     (condition-case err
         (progn

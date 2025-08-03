@@ -48,13 +48,17 @@
 
 (defvar org-srs-embed-overlay-mode)
 
-(defvar org-srs-embed-cloze-tag "srs")
+(defvar org-srs-embed-cloze-tag "srs"
+  "Tag used for identifying embedded cloze deletions.")
 
-(defvar org-srs-embed-cloze-brackets '(?{ ?}))
+(defvar org-srs-embed-cloze-brackets '(?{ ?})
+  "Brackets used to enclose content within embedded cloze deletions.")
 
-(defvar org-srs-embed-cloze-overlay-category 'org-srs-embed-cloze)
+(defvar org-srs-embed-cloze-overlay-category 'org-srs-embed-cloze
+  "Category symbol for overlays to prettify embedded cloze deletions.")
 
 (cl-defun org-srs-embed-put-cloze-overlays (&optional (start (point-min)) (end (point-max)))
+  "Prettify embedded cloze deletions between START and END using overlays."
   (save-excursion
     (cl-loop with ({ }) = (mapcar #'char-to-string org-srs-embed-cloze-brackets)
              initially (goto-char start)
@@ -80,9 +84,11 @@
              (overlay-put overlay 'display (if (org-at-table-p) (string-pad string (+ (length string) padding) nil openp) string)))))
 
 (cl-defun org-srs-embed-remove-cloze-overlays (&optional (start (point-min)) (end (point-max)))
+  "Remove all cloze deletion overlays between START and END."
   (remove-overlays start end 'category org-srs-embed-cloze-overlay-category))
 
 (cl-defun org-srs-embed-put-meta-overlays (&optional (start (point-min)) (end (point-max)))
+  "Prettify embedded entry metadata between START and END using overlays."
   (cl-assert org-srs-embed-overlay-mode)
   (save-excursion
     (goto-char start)
@@ -102,29 +108,34 @@
          (overlay-put overlay 'display (propertize "#+SRS" 'face 'org-habit-ready-face)))))))
 
 (cl-defun org-srs-embed-remove-meta-overlays (&optional (start (point-min)) (end (point-max)))
+  "Remove all metadata overlays between START and END."
   (remove-overlays start end 'category 'org-srs-embed-meta))
 
 (cl-defun org-srs-embed-put-overlays (&optional (start (point-min)) (end (point-max)))
+  "Apply both cloze and metadata overlays between START and END."
   (org-srs-embed-put-cloze-overlays start end)
   (org-srs-embed-put-meta-overlays start end))
 
 (cl-defun org-srs-embed-remove-overlays (&optional (start (point-min)) (end (point-max)))
+  "Remove both cloze and metadata overlays between START and END."
   (org-srs-embed-remove-cloze-overlays start end)
   (org-srs-embed-remove-meta-overlays start end))
 
 (cl-defun org-srs-embed-update-overlays (&optional (start (point-min)) (end (point-max)))
+  "Refresh both cloze and metadata overlays between START and END."
   (org-srs-embed-remove-overlays start end)
   (when org-srs-embed-overlay-mode
     (org-srs-embed-put-overlays start end)))
 
 ;;;###autoload
 (define-minor-mode org-srs-embed-overlay-mode
-  "Minor mode for visualizing the embedded Org-srs entries using overlays."
+  "Minor mode for prettifying the embedded Org-srs entries using overlays."
   :group 'org-srs-embed
   (cl-assert (eq major-mode 'org-mode))
   (if org-srs-embed-overlay-mode (org-srs-embed-put-overlays) (org-srs-embed-remove-overlays)))
 
 (defun org-srs-embed-cloze (start end &optional hint id)
+  "Create a cloze deletion between START and END with optional HINT and ID."
   (cl-destructuring-bind ({ } &aux (tag org-srs-embed-cloze-tag))
       (mapcar #'char-to-string org-srs-embed-cloze-brackets)
     (save-excursion
@@ -143,6 +154,11 @@
 
 (cl-defmethod org-srs-item-cloze-interactively :around
   (type &context (org-srs-item-cloze-function (eql #'org-srs-embed-cloze)) &optional props)
+  "Method for handling interactively creating embedded cloze deletions.
+
+TYPE and PROPS specify the element for which the cloze deletion is created.
+ORG-SRS-ITEM-CLOZE-FUNCTION must be `org-srs-embed-cloze', ensuring this method
+only applies when creating embedded cloze deletions."
   (let* ((element (list type props))
          (start (copy-marker (org-element-begin element)))
          (end (copy-marker (org-element-end element))))
@@ -150,6 +166,7 @@
     (org-srs-embed-update-overlays start end)))
 
 (cl-defun org-srs-embed-process-clozes (&optional (start (point-min)) (end (point-max)) (process-function #'cl-values))
+  "Process embedded cloze deletions between START and END using PROCESS-FUNCTION."
   (save-excursion
     (cl-loop with start = (copy-marker start) and end = (copy-marker end)
              with ({ }) = org-srs-embed-cloze-brackets
@@ -174,13 +191,14 @@
              do (funcall process-function cloze))))
 
 (cl-defun org-srs-embed-cloze-bounds (&optional (position (point)) start end)
+  "Return the embedded cloze deletion's bounds at POSITION between START and END."
   (cl-destructuring-bind ({ } &aux (tag org-srs-embed-cloze-tag))
       (mapcar #'char-to-string org-srs-embed-cloze-brackets)
     (save-excursion
       (goto-char position)
       (let ((regexp-left (rx "@@" (literal tag) ":" (literal {) (literal {)))
             (regexp-right (rx (literal }) (literal }) "@@"))
-            (start (or start (pos-bol))) (end (or end (pos-eol))))
+            (start (or start (line-beginning-position))) (end (or end (line-end-position))))
         (let ((bl (or (and (save-excursion (re-search-backward regexp-left start t)) (match-beginning 0)) start))
               (br (or (and (save-excursion (re-search-backward regexp-right start t)) (match-end 0)) start))
               (fl (or (and (save-excursion (re-search-forward regexp-left end t)) (match-beginning 0)) end))
@@ -189,6 +207,7 @@
             (when (< (1- (point)) fl fr) (cons fl fr))))))))
 
 (defun org-srs-embed-uncloze (start end)
+  "Remove all embedded cloze deletions between START and END."
   (let ((start (copy-marker start)) (end (copy-marker end)))
     (cl-destructuring-bind ({ }) (mapcar #'char-to-string org-srs-embed-cloze-brackets)
       (prog1 (org-srs-embed-process-clozes
@@ -197,12 +216,18 @@
                 (cl-assert
                  (looking-back
                   (rx (literal {) (literal {) (literal cloze) (literal }) (*? anychar) (literal }))
-                  (pos-bol)))
+                  (line-beginning-position)))
                 (replace-match cloze)))
         (org-srs-embed-update-overlays start end)))))
 
 (cl-defmethod org-srs-item-uncloze-interactively
   (type &context ((region-active-p) (eql nil)) (org-srs-item-uncloze-function (eql #'org-srs-embed-uncloze)) &optional props)
+  "Method for handling interactively removing embedded cloze deletions.
+
+TYPE and PROPS specify the element for which the cloze deletion is removed.
+ORG-SRS-ITEM-UNCLOZE-FUNCTION must be `org-srs-embed-uncloze' and
+REGION-ACTIVE-P must be nil, ensuring this method only applies when removing
+embedded cloze deletions when no active region is present."
   (if-let ((bounds (org-srs-embed-cloze-bounds)))
       (cl-destructuring-bind (start . end) bounds
         (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element start end (list type props)))))
@@ -216,6 +241,7 @@
     (call-interactively #'org-srs-item-uncloze-dwim)))
 
 (cl-defun org-srs-embed-export-file-relative (&optional (root (file-name-concat org-directory "org-srs")))
+  "Return the export file path for the current buffer relative to ROOT."
   (let ((file (buffer-file-name (current-buffer))))
     (cl-assert file)
     (let ((relative (file-relative-name file org-directory)))
@@ -249,26 +275,28 @@
     (setq-local header-line-format nil)))
 
 (cl-defun org-srs-embed-export-clozes (&optional (start (point-min)) (end (point-max)))
+  "Convert embedded cloze deletions to Org-srs cloze syntax from START to END."
   (let ((cloze-identifier (org-srs-item-cloze-identifier)))
     (org-srs-embed-process-clozes
      start end
      (let ((identifiers (make-hash-table)))
        (lambda (cloze)
          (let ((identifier (funcall cloze-identifier cloze)))
-           (cl-assert (looking-back (rx "{{" (group (*? not-newline)) (or "}}" (and "}{" (group (*? not-newline)) "}}"))) (pos-bol)))
+           (cl-assert (looking-back (rx "{{" (group (*? not-newline)) (or "}}" (and "}{" (group (*? not-newline)) "}}"))) (line-beginning-position)))
            (goto-char (match-beginning 0))
            (forward-char 1)
            (cl-assert (null (gethash identifier identifiers)))
            (setf (gethash identifier identifiers) cloze)
            (insert "{" (org-srs-item-princ-to-string identifier) "}")))))))
 
-(defvar-local org-srs-embed-export-window-configuration nil)
+(defvar-local org-srs-embed-export-window-configuration nil
+  "Saved window configuration during the export process.")
 
 (defvar org-srs-embed-prepare-finalize-hook nil
-  "Hook that is run before the finalization starts.
-The Org-srs entry export buffer is current and still narrowed.")
+  "Hook that is run before the finalization starts.")
 
 (defun org-srs-embed-export-finish ()
+  "Finalize and clean up the export process."
   (cl-assert org-srs-embed-export-mode)
   (kill-local-variable 'org-srs-embed-prepare-finalize-hook)
   (widen)
@@ -304,6 +332,7 @@ The Org-srs entry export buffer is current and still narrowed.")
           (const :tag "All-at-once" all-at-once)))
 
 (defun org-srs-embed-item-cloze-updater ()
+  "Return the function to update cloze items."
   (cl-ecase (org-srs-embed-export-cloze-type)
     (one-by-one
      (apply-partially #'call-interactively #'org-srs-item-cloze-update))
@@ -314,55 +343,60 @@ The Org-srs entry export buffer is current and still narrowed.")
          (ignore-errors (org-srs-item-new 'cloze)))))))
 
 (cl-defgeneric org-srs-embed-export-entry (type props)
-  (let* ((element (list type props))
-         (buffer (current-buffer))
-         (content (buffer-substring (org-element-begin element) (org-element-end element)))
-         (window-configuration (current-window-configuration))
-         (type (org-srs-embed-export-item-type))
-         (cloze-updater (org-srs-embed-item-cloze-updater)))
-    (with-current-buffer (switch-to-buffer (find-file-noselect (funcall (org-srs-embed-export-file))))
-      (setf org-srs-embed-export-window-configuration window-configuration)
-      (goto-char (point-max))
-      (insert "* ")
-      (org-return-and-maybe-indent)
-      (org-narrow-to-subtree)
-      (save-excursion
-        (insert content)
-        (delete-blank-lines))
-      (indent-region (point) (point-max))
-      (if (cl-plusp (org-srs-embed-export-clozes (point)))
-          (setf type 'cloze)
-        (cl-assert (not (eq type 'cloze))))
-      (org-id-get-create)
-      (org-back-to-heading)
-      (org-end-of-line)
-      (cl-assert (null org-srs-embed-prepare-finalize-hook))
-      (cl-assert (not (local-variable-p 'org-srs-embed-prepare-finalize-hook)))
-      (org-srs-item-add-hook-once
-       'org-srs-embed-prepare-finalize-hook
-       (lambda ()
-         (org-back-to-heading)
-         (if (eq type 'cloze)
-             (funcall cloze-updater)
-           (org-srs-item-new-interactively type))
-         (let ((id (org-id-get))
-               (front (cl-fifth (org-heading-components))))
-           (cl-assert id) (cl-assert front)
-           (with-current-buffer buffer
-             (save-excursion
-               (goto-char (org-element-begin element))
-               (let ((start (point))
-                     (indentation (rx bol (* blank))))
-                 (if (not (and (looking-back indentation (pos-bol)) (looking-at indentation)))
-                     (insert (format "@@comment:+SRS_EMBEDDED: [[id:%s][%s]]@@ " id front))
-                   (let ((indentation (match-string 0)))
-                     (open-line 1)
-                     (insert indentation)
-                     (insert (format "#+SRS_EMBEDDED: [[id:%s][%s]]" id front))))
-                 (org-srs-embed-update-overlays start (point))))))))
-      (org-srs-embed-export-mode +1))))
+  (:method
+   (type props)
+   "Default method to export the element specified by TYPE and PROPS."
+   (let* ((element (list type props))
+          (buffer (current-buffer))
+          (content (buffer-substring (org-element-begin element) (org-element-end element)))
+          (window-configuration (current-window-configuration))
+          (type (org-srs-embed-export-item-type))
+          (cloze-updater (org-srs-embed-item-cloze-updater)))
+     (with-current-buffer (switch-to-buffer (find-file-noselect (funcall (org-srs-embed-export-file))))
+       (setf org-srs-embed-export-window-configuration window-configuration)
+       (goto-char (point-max))
+       (insert "* ")
+       (org-return-and-maybe-indent)
+       (org-narrow-to-subtree)
+       (save-excursion
+         (insert content)
+         (delete-blank-lines))
+       (indent-region (point) (point-max))
+       (if (cl-plusp (org-srs-embed-export-clozes (point)))
+           (setf type 'cloze)
+         (cl-assert (not (eq type 'cloze))))
+       (org-id-get-create)
+       (org-back-to-heading)
+       (org-end-of-line)
+       (cl-assert (null org-srs-embed-prepare-finalize-hook))
+       (cl-assert (not (local-variable-p 'org-srs-embed-prepare-finalize-hook)))
+       (org-srs-item-add-hook-once
+        'org-srs-embed-prepare-finalize-hook
+        (lambda ()
+          (org-back-to-heading)
+          (if (eq type 'cloze)
+              (funcall cloze-updater)
+            (org-srs-item-new-interactively type))
+          (let ((id (org-id-get))
+                (front (cl-fifth (org-heading-components))))
+            (cl-assert id) (cl-assert front)
+            (with-current-buffer buffer
+              (save-excursion
+                (goto-char (org-element-begin element))
+                (let ((start (point))
+                      (indentation (rx bol (* blank))))
+                  (if (not (and (looking-back indentation (line-beginning-position)) (looking-at indentation)))
+                      (insert (format "@@comment:+SRS_EMBEDDED: [[id:%s][%s]]@@ " id front))
+                    (let ((indentation (match-string 0)))
+                      (open-line 1)
+                      (insert indentation)
+                      (insert (format "#+SRS_EMBEDDED: [[id:%s][%s]]" id front))))
+                  (org-srs-embed-update-overlays start (point))))))))
+       (org-srs-embed-export-mode +1))))
+  (:documentation "Export the element specified by TYPE and PROPS as a new review item."))
 
 (defun org-srs-embed-link-file-position ()
+  "Retrieve the file and position from the link at point."
   (cl-assert (looking-at (rx "[" "[" (group (*? anychar)) "]" (*? anychar) "]")))
   (let ((link (match-string 1)))
     (cl-assert (string-prefix-p "id:" link))
@@ -371,6 +405,9 @@ The Org-srs entry export buffer is current and still narrowed.")
         (cl-values file position)))))
 
 (cl-defun org-srs-embed-remove-comments (&optional (start (point-min)) (end (point-max)))
+  "Remove all inline comments from the region between START and END.
+
+Return the number of comments removed."
   (save-excursion
     (cl-loop initially (goto-char start)
              while (re-search-forward (rx "@@comment:" (*? anychar) "@@" (* blank)) end t)
@@ -378,41 +415,48 @@ The Org-srs entry export buffer is current and still narrowed.")
              sum 1)))
 
 (defconst org-srs-embed-entry-header-regexp (rx (or (and "@@comment:+srs_embedded:" (* blank) (group-n 1 (*? anychar)) "@@")
-                                                    (and "#+srs_embedded:" (* blank) (group-n 1 (*? anychar)) eol))))
+                                                    (and "#+srs_embedded:" (* blank) (group-n 1 (*? anychar)) eol)))
+  "Regular expression matching embedded entry headers.")
 
 (cl-defgeneric org-srs-embed-update-entry (type props)
-  (cl-assert (looking-at org-link-bracket-re))
-  (let* ((front (match-string 2))
-         (element (list type props))
-         (content (buffer-substring (org-element-begin element) (org-element-end element)))
-         (updater (org-srs-embed-item-cloze-updater)))
-    (cl-multiple-value-bind (file position) (org-srs-embed-link-file-position)
-      (with-current-buffer (find-file-noselect file)
-        (save-excursion
-          (save-restriction
-            (widen)
-            (goto-char position)
-            (org-narrow-to-subtree)
-            (when front (org-edit-headline front))
-            (org-end-of-meta-data t)
-            (delete-region (point) (point-max))
-            (save-excursion (insert content))
-            (indent-region (point) (point-max))
-            (org-srs-embed-remove-comments (point))
-            (org-srs-embed-export-clozes)
-            (goto-char (point-max))
-            (widen)
-            (delete-blank-lines)
-            (goto-char position)
-            (funcall updater)))))))
+  (:method
+   (type props)
+   "Default method to update the entry with the element specified by TYPE and PROPS."
+   (cl-assert (looking-at org-link-bracket-re))
+   (let* ((front (match-string 2))
+          (element (list type props))
+          (content (buffer-substring (org-element-begin element) (org-element-end element)))
+          (updater (org-srs-embed-item-cloze-updater)))
+     (cl-multiple-value-bind (file position) (org-srs-embed-link-file-position)
+       (with-current-buffer (find-file-noselect file)
+         (save-excursion
+           (save-restriction
+             (widen)
+             (goto-char position)
+             (org-narrow-to-subtree)
+             (when front (org-edit-headline front))
+             (org-end-of-meta-data t)
+             (delete-region (point) (point-max))
+             (save-excursion (insert content))
+             (indent-region (point) (point-max))
+             (org-srs-embed-remove-comments (point))
+             (org-srs-embed-export-clozes)
+             (goto-char (point-max))
+             (widen)
+             (delete-blank-lines)
+             (goto-char position)
+             (funcall updater)))))))
+  (:documentation "Update the exported entry with the element specified by TYPE and PROPS."))
 
 (defun org-srs-embed-element-at-point ()
+  "Like `org-element-at-point', but handle plain list elements specially."
   (let ((element (org-element-at-point)))
     (cl-case (org-element-type element)
       (plain-list (org-element-at-point (1+ (point))))
       (t element))))
 
 (defun org-srs-embed-goto-link-to-entry ()
+  "Move point to the link to the exported entry of the element at point."
   (cl-flet ((org-element-at-point () (org-srs-embed-element-at-point)))
     (let ((marker (point-marker))
           (current-start (org-element-begin (org-element-at-point)))
@@ -440,6 +484,7 @@ The Org-srs entry export buffer is current and still narrowed.")
           (null (goto-char marker))))))
 
 (defun org-srs-embed-open-entry ()
+  "Open the link to an exported entry at point."
   (cl-multiple-value-bind (file position)
       (save-excursion
         (cl-assert (org-srs-embed-goto-link-to-entry))
@@ -456,14 +501,14 @@ The Org-srs entry export buffer is current and still narrowed.")
 (cl-defun org-srs-embed-dwim (arg)
   "Perform context-aware operations on the current element or embedded entry.
 
-If the point is on the header of an already exported entry, jump to the exported
+If point is on the header of an already exported entry, jump to the exported
 entry.
 If called interactively with a `\\[universal-argument]` or ARG greater than 1
-when the point is on the header, edit the link to the exported entry.
-If the point is within the content of an already exported entry, update the
-exported entry (note that this will overwrite the previously exported content).
-If the point is on content that has not yet been exported, export the current
-Org element as the entry content.
+when point is on the header, edit the link to the exported entry.
+If point is within the content of an already exported entry, update the exported
+entry (note that this will overwrite the previously exported content).
+If point is on content that has not yet been exported, export the current Org
+element as the entry content.
 If called interactively with a `\\[universal-argument]` prefix or ARG greater
 than 1 and there is an active region, perform a batch export on the region."
   (interactive "p")
@@ -498,7 +543,7 @@ than 1 and there is an active region, perform a batch export on the region."
               (cl-loop with start = (copy-marker (region-beginning)) and end = (copy-marker (region-end))
                        initially (add-hook 'org-srs-embed-export-mode-hook export-hook) (deactivate-mark) (goto-char start)
                        do (save-excursion
-                            (re-search-forward (org-srs-embed-export-headline) (pos-eol))
+                            (re-search-forward (org-srs-embed-export-headline) (line-end-position))
                             (setf front (match-string 1))
                             (let ((element (org-element-copy (org-element-at-point))))
                               (setf (org-element-begin element) (point))

@@ -44,19 +44,24 @@
 
 (defvar org-srs-review-source)
 
-(defvar org-srs-review-item nil)
+(defvar org-srs-review-item nil
+  "Item being reviewed in the current review session.")
 
 (defvar org-srs-reviewing-p)
 
-(defvar org-srs-reviewing-predicates (list (apply-partially #'local-variable-p 'org-srs-review-continue-hook)))
+(defvar org-srs-reviewing-predicates (list (apply-partially #'local-variable-p 'org-srs-review-continue-hook))
+  "List of predicates to determine if a review session is active.")
 
 (defun org-srs-reviewing-p ()
+  "Return non-nil if a review session is currently active."
   (if (boundp 'org-srs-reviewing-p) org-srs-reviewing-p
     (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
 
-(defvar org-srs-review-continue-hook nil)
+(defvar org-srs-review-continue-hook nil
+  "Hook run to continue reviewing after completing an item review.")
 
-(defvar org-srs-review-finish-hook nil)
+(defvar org-srs-review-finish-hook nil
+  "Hook run when all review items have been completed.")
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 
@@ -81,6 +86,10 @@
   :type 'sexp)
 
 (cl-defun org-srs-review-learn-ahead-time (&optional (now (org-srs-time-now)))
+  "Return the time for learning ahead from NOW.
+
+The learning ahead limit is determined by customizable option
+`org-srs-review-learn-ahead-limit'."
   (let ((limit (org-srs-review-learn-ahead-limit)))
     (cl-etypecase limit
       (list
@@ -92,7 +101,8 @@
   '((const :tag "Position" position)
     (const :tag "Random" random)
     (const :tag "Due date" due-date)
-    (const :tag "Priority" priority)))
+    (const :tag "Priority" priority))
+  "List of review orders for customization.")
 
 (org-srs-property-defcustom org-srs-review-order-new-review 'review-first
   "Relative display order between new items and review items."
@@ -115,6 +125,10 @@
   :type `(choice . ,org-srs-review-orders))
 
 (defun org-srs-review-default-strategy ()
+  "Return the default review strategy.
+
+The behavior can be fine-tuned through various customizable options in the
+`org-srs-review' group."
   (cl-flet ((ahead (strategy)
               (if-let ((ahead-time (org-srs-review-learn-ahead-time)))
                   `(or ,strategy (ahead ,strategy ,ahead-time))
@@ -152,10 +166,12 @@
           (t (ahead (limit-total-reviews `(sort (union ,strategy-new ,strategy-review) ,order)))))))))
 
 (cl-defun org-srs-review-due-items (&optional (source (or (bound-and-true-p org-srs-review-source) (current-buffer))))
+  "Return due review items in SOURCE according to the current strategy."
   (let ((org-srs-review-source source))
     (org-srs-review-strategy-items 'todo (or (org-srs-review-strategy) (org-srs-review-default-strategy)))))
 
 (defun org-srs-review-sources ()
+  "Return potential review sources with gradually increasing scope."
   (cl-delete
    nil
    (list
@@ -185,6 +201,10 @@
                  (const :tag "If scheduled for today" org-srs-time-today-p)))
 
 (defun org-srs-review-source-dwim ()
+  "Return the recommended review source based on the current context.
+
+If called interactively with a `\\[universal-argument]` prefix, prompts for
+source choice."
   (cl-destructuring-bind (&optional (arg 1) &aux (sources (org-srs-review-sources)))
       current-prefix-arg
     (cl-assert (not (org-srs-reviewing-p)))
@@ -193,6 +213,7 @@
       (cdr (cl-first sources)))))
 
 (defun org-srs-review-end ()
+  "Clean up after completing an item review."
   (cl-assert (local-variable-p 'org-srs-review-item))
   (cl-assert (consp org-srs-review-item))
   (kill-local-variable 'org-srs-review-item)
@@ -228,6 +249,7 @@ to review."
       (let ((org-srs-reviewing-p nil)) (run-hooks 'org-srs-review-finish-hook)))))
 
 (defun org-srs-review-message-review-done ()
+  "Display a message in the minibuffer when the current review session finishes."
   (message "Review done"))
 
 (add-hook 'org-srs-review-finish-hook #'org-srs-review-message-review-done)
@@ -241,6 +263,7 @@ to review."
     (run-hooks 'org-srs-review-continue-hook)))
 
 (defun org-srs-review-next ()
+  "Jump to the next review item in the current review session."
   (let ((org-srs-reviewing-p t))
     (org-srs-review-quit)))
 
@@ -248,7 +271,8 @@ to review."
 (cl-defun org-srs-review-postpone (&optional (time '(1 :day)) &rest args)
   "Postpone the current review item by TIME.
 
-ARGS specifies the item to postpone. If ARGS is nil, the current item is used."
+ARGS specifies the item to postpone. If ARGS is nil, the current review item is
+used."
   (interactive (list (read-from-minibuffer "Interval: " (prin1-to-string '(1 :day)) nil t)))
   (setf args (or args org-srs-review-item (cl-multiple-value-list (org-srs-item-at-point))))
   (org-srs-item-with-current args

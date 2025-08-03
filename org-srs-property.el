@@ -42,6 +42,7 @@
   :link '(url-link "https://github.com/bohonghuang/org-srs"))
 
 (cl-defun org-srs-property-plist (&optional (position (point)))
+  "Get the property list specified by #+ATTR_SRS at POSITION."
   (ignore-error error
     (save-excursion
       (goto-char position)
@@ -50,6 +51,7 @@
         (read (concat "(" (cl-reduce (lambda (acc it) (concat acc " " it)) property) ")"))))))
 
 (cl-defun \(setf\ org-srs-property-plist\) (value &optional (position (point)))
+  "Set the property list specified by #+ATTR_SRS to VALUE at POSITION."
   (save-excursion
     (let ((header "#+ATTR_SRS: "))
       (goto-char position)
@@ -61,9 +63,19 @@
       (insert header)
       (insert (string-remove-suffix ")" (string-remove-prefix "(" (prin1-to-string value)))))))
 
-(defvar org-srs-property-use-inheritance 'unspecified)
+(defvar org-srs-property-use-inheritance 'unspecified
+  "Control whether Org-srs properties should inherit from parent headings.
+
+When set to `unspecified', the default inheritance behavior is used.
+When set to t, Org-srs properties inherit from parent headings.
+When set to nil, Org-srs properties do not inherit from parent headings.")
 
 (defmacro org-srs-property-defcustom (name &rest defcustom-args)
+  "Define an Org-srs property (customizable option) named NAME with DEFCUSTOM-ARGS.
+
+The property expects to be accessed via function call rather than direct
+variable reference and can be customized globally, per directory, per buffer,
+per entry, or per item."
   (declare (doc-string 3) (indent defun))
   (cl-assert (string-prefix-p (symbol-name 'org-srs) (symbol-name name)))
   (let* ((property (string-remove-prefix (symbol-name 'org-) (symbol-name name)))
@@ -102,6 +114,7 @@
                 ,name))))))))
 
 (cl-defun org-srs-property-group-members (&optional (group 'org-srs))
+  "Return a list of all custom variables in GROUP and its subgroups."
   (cl-loop for (member type) in (custom-group-members group nil)
            if (eq type 'custom-variable)
            collect member
@@ -111,6 +124,7 @@
            do (cl-assert nil)))
 
 (cl-defun org-srs-property-thunk-with-saved-properties (thunk &optional (properties (org-srs-property-group-members)))
+  "Return a thunk that calls THUNK with saved PROPERTIES."
   (defvar org-srs-property-thunk-args)
   (let ((thunk (cl-reduce
                 (lambda (thunk property)
@@ -122,6 +136,14 @@
     (lambda (&rest args) (let ((org-srs-property-thunk-args args)) (funcall thunk)))))
 
 (defmacro org-srs-property-let (bindings &rest body)
+  "Temporarily bind Org-srs properties while executing BODY.
+
+BINDINGS is a list of property bindings or a symbol naming a property group.
+
+When BINDINGS is a list, each element can be either VAR (binding to its saved
+value), or (VAR VAL) binding VAR to VAL.
+When BINDINGS is a symbol naming a property group, all properties in that group
+are temporarily bound to their current values."
   (declare (indent 1))
   (pcase-exhaustive bindings
     (`((,(and (pred symbolp) var) ,val) . ,rest)

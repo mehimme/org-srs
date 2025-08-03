@@ -39,12 +39,22 @@
   :group 'org-srs-algorithm
   :type 'sexp)
 
-(cl-defgeneric org-srs-algorithm-ensure (object &rest _args) object)
+(cl-defgeneric org-srs-algorithm-ensure (object &rest args)
+  (:method
+   (object &rest _args)
+   "Default method that returns OBJECT as is."
+   object)
+  (:documentation "Convert OBJECT with ARGS into an object usable for `org-srs-algorithm-repeat'."))
 
 (defun org-srs-algorithm-current ()
+  "Return the current algorithm suitable for `org-srs-algorithm-repeat'."
   (apply #'org-srs-algorithm-ensure (ensure-list (org-srs-algorithm))))
 
-(cl-defgeneric org-srs-algorithm-repeat (algorithm args))
+(cl-defgeneric org-srs-algorithm-repeat (algorithm args)
+  (:documentation "Pass the algorithm state to ALGORITHM through alist ARGS.
+
+Return the new algorithm state alist to be used for the next spaced repetition.
+When ARGS is nil, return the initial algorithm state."))
 
 (provide 'org-srs-algorithm)
 ;;; org-srs-algorithm.el ends here

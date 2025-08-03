@@ -35,6 +35,7 @@
 (require 'org-srs-table)
 
 (defun org-srs-log-insert ()
+  "Insert a new log element with current timestamp and algorithm parameters."
   (let ((initargs (org-srs-algorithm-repeat (org-srs-algorithm-current) nil)))
     (org-srs-table-from-alist `((timestamp . ,(org-srs-timestamp-now)) . ,initargs))
     (org-srs-table-forward-star)
@@ -42,6 +43,7 @@
     (org-table-align)))
 
 (defun org-srs-log-plist-alist (plist)
+  "Convert PLIST to an alist destructively."
   (cl-loop for last = nil then list
            for list = plist then next
            for (key value) = list
@@ -54,6 +56,11 @@
            finally (cl-return plist)))
 
 (cl-defun org-srs-log-repeat (&rest args &key (timestamp nil timestampp) &allow-other-keys)
+  "Repeat the current log entry with parameters ARGS passed to the algorithm.
+
+TIMESTAMP specifies the review time.
+
+Return the updated parameters if successful."
   (org-srs-table-goto-starred-line)
   (org-srs-property-let t
     (org-srs-table-with-temp-buffer
@@ -86,11 +93,15 @@
                (setf (org-srs-table-field 'timestamp) (alist-get 'timestamp args)))))
   args)
 
-(defconst org-srs-log-latest-timestamp-regexp (rx (regexp org-srs-table-starred-line-regexp) (* blank) (group (regexp org-srs-timestamp-regexp))))
+(defconst org-srs-log-latest-timestamp-regexp
+  (rx (regexp org-srs-table-starred-line-regexp) (* blank) (group (regexp org-srs-timestamp-regexp)))
+  "Regular expression matching the timestamp in the latest starred line.")
 
-(defconst org-srs-log-drawer-name "SRSITEMS")
+(defconst org-srs-log-drawer-name "SRSITEMS"
+  "Name of the drawer used for storing Org-srs items.")
 
 (defun org-srs-log-end-of-drawer ()
+  "Move point to the end of the Org-srs drawer, creating it if necessary."
   (save-restriction
     (org-back-to-heading)
     (let ((entry-start (point))
@@ -112,6 +123,7 @@
         (beginning-of-line)))))
 
 (defun org-srs-log-beginning-of-drawer ()
+  "Move point to the beginning of the Org-srs drawer, creating it if necessary."
   (save-restriction
     (org-narrow-to-subtree)
     (org-back-to-heading)
@@ -120,6 +132,7 @@
       (re-search-backward (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol) heading-start))))
 
 (cl-defun org-srs-log-hide-drawer (&optional (position (point)))
+  "Toggle the visibility of the Org-srs drawer at POSITION."
   (save-excursion
     (goto-char position)
     (org-srs-log-beginning-of-drawer)

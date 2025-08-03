@@ -36,6 +36,7 @@
 (require 'fsrs)
 
 (cl-defun org-srs-algorithm-fsrs-optimizer-insert-review-log (markers buffer)
+  "Insert review logs from MARKERS into BUFFER in CSV format."
   (cl-loop initially (with-current-buffer buffer
                        (insert "review_time,card_id,review_rating,review_state")
                        (newline))
@@ -59,11 +60,13 @@
                          until (org-at-table-hline-p)))))
 
 (defun org-srs-algorithm-fsrs-optimizer-iana-tz ()
+  "Run timedatectl to get the current system timezone in IANA format."
   (let ((output (shell-command-to-string "timedatectl")))
     (cl-assert (string-match (rx "Time zone:" (* blank) (group (+? anychar)) (* blank) "(") output))
     (match-string 1 output)))
 
 (cl-defun org-srs-algorithm-fsrs-optimizer-start-process (file &optional (callback #'ignore))
+  "Start FSRS optimizer process with data from FILE and call CALLBACK with results."
   (let ((buffer (generate-new-buffer "*fsrs-optimizer*"))
         (algorithm (org-srs-algorithm-current)))
     (cl-assert (null (get-buffer-process buffer)))
@@ -117,6 +120,7 @@
          (kill-buffer buffer))))))
 
 (cl-defun org-srs-algorithm-fsrs-optimizer-optimize (markers &optional (callback #'ignore))
+  "Optimize FSRS parameters using review history from MARKERS and call CALLBACK."
   (let ((file (make-temp-file "org-srs-algorithm-fsrs-optimizer" nil ".csv")))
     (with-temp-buffer
       (let ((buffer (current-buffer)))
@@ -144,6 +148,7 @@ prompt the user to select the scope of items for optimization."
                (read-file-name "File or directory for optimization: " nil default-directory t)
              (or (buffer-file-name (current-buffer)) default-directory)))))
   (cl-check-type source string)
+  (require 'org-srs)
   (let ((file source))
     (org-srs-algorithm-fsrs-optimizer-optimize
      (let ((markers nil))

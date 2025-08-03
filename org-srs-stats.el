@@ -44,23 +44,34 @@
   :group 'org-srs
   :prefix "org-srs-stats-")
 
-(cl-defgeneric org-srs-stats-deep-copy (object) object)
+(cl-defgeneric org-srs-stats-deep-copy (object)
+  (:method
+   (object)
+   "Default method to return OBJECT as is."
+   object)
+  (:documentation "Make a deep copy of OBJECT."))
 
-(cl-defmethod org-srs-stats-deep-copy ((null null)) null)
+(cl-defmethod org-srs-stats-deep-copy ((null null))
+  "Method to return nil (NULL) as is."
+  null)
 
 (cl-defmethod org-srs-stats-deep-copy ((cons cons))
+  "Method to return a newly allocated CONS with its car and cdr deep copied."
   (cons (org-srs-stats-deep-copy (car cons)) (org-srs-stats-deep-copy (cdr cons))))
 
 (cl-defmethod org-srs-stats-deep-copy ((vector vector))
+  "Method to return a newly allocated VECTOR with all elements deep copied."
   (cl-map (cl-type-of vector) #'org-srs-stats-deep-copy vector))
 
 (cl-defmethod org-srs-stats-deep-copy ((object cl-structure-object))
+  "Method to return a newly allocated structure OBJECT with all slots deep copied."
   (cl-loop with new-object = (copy-sequence object)
            for slot in (mapcar #'cl--slot-descriptor-name (cl--class-slots (cl-find-class (cl-type-of object))))
            do (setf (eieio-oref new-object slot) (org-srs-stats-deep-copy (eieio-oref object slot)))
            finally (cl-return new-object)))
 
 (cl-defun org-srs-stats-call-with-rating-simulator (thunk)
+  "Call THUNK with a rating function in a simulated environment."
   (org-srs-property-let org-srs-algorithm
     (org-srs-property-let org-srs-schedule
       (org-srs-property-let ((org-srs-review-cache-p nil)
@@ -101,6 +112,7 @@
                   (cl-return-from org-srs-stats-call-with-rating-simulator (funcall thunk #'rate)))))))))))
 
 (cl-defmacro org-srs-stats-with-rating-simulator (args &rest body)
+  "Execute BODY with a rating simulator function bound to ARGS."
   (declare (indent 1))
   `(org-srs-stats-call-with-rating-simulator
     (lambda ,args

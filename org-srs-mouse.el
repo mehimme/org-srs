@@ -33,10 +33,12 @@
 (require 'org-srs-stats-interval)
 
 (cl-defun org-srs-mouse-bottom-panel-hide (&optional (frame (org-srs-child-frame 'org-srs-mouse-bottom-panel)))
+  "Hide bottom panel child FRAME if it is visible."
   (when (frame-visible-p frame)
     (make-frame-invisible frame)))
 
 (cl-defun org-srs-mouse-string-pad-pixel (string &optional (width (string-pixel-width string)) (height (line-pixel-height)))
+  "Return STRING padded to WIDTH and HEIGHT in pixels."
   (let ((space-width (/ (- width (string-pixel-width string)) 2)))
     (concat
      (propertize " " 'display `(space :width (,space-width) :height (,height)))
@@ -45,12 +47,18 @@
 
 (defconst org-srs-mouse-bottom-panel-button-faces
   (cl-loop for rating in org-srs-review-ratings
-           collect (cons rating (cl-ecase rating (:easy 'homoglyph) (:good 'success) (:hard 'warning) (:again 'error)))))
+           collect (cons rating (cl-ecase rating (:easy 'homoglyph) (:good 'success) (:hard 'warning) (:again 'error))))
+  "Alist mapping review ratings to their corresponding button faces.")
 
 (cl-defun org-srs-mouse-bottom-panel-show (labels
                                            &key
                                            (faces (cl-subst-if 'default (lambda (elem) (and elem (symbolp elem))) labels))
                                            (callback #'ignore))
+  "Show a bottom panel with interactive buttons.
+
+LABELS is a list of button labels to display.
+FACES is a list of faces for each button.
+CALLBACK is a function called with the pressed button's label."
   (cl-assert labels) (cl-assert faces)
   (let* ((labels-list (if (cl-every #'symbolp labels) (list labels) labels))
          (faces-list (if (cl-every #'symbolp faces) (list faces) faces))
@@ -93,6 +101,7 @@
     (setf (org-srs-child-frames 'org-srs-mouse-bottom-panel) nil)))
 
 (defun org-srs-mouse-show-intervals-in-minibuffer ()
+  "Display review intervals for the current review item in the minibuffer."
   (when (and org-srs-mouse-mode (org-srs-reviewing-p) (not (org-srs-item-confirm-pending-p)))
     (let ((item org-srs-review-item))
       (cl-loop with message-log-max = nil
@@ -118,6 +127,7 @@
                finally (message "%s" message)))))
 
 (defun org-srs-mouse-mode-update-panels-1 ()
+  "Update panels based on the current review state."
   (if (and org-srs-mouse-mode (eq major-mode 'org-mode) org-srs-review-item)
       (if-let ((confirm-command (org-srs-item-confirm-pending-p)))
           (org-srs-mouse-bottom-panel-show
@@ -134,6 +144,7 @@
     (org-srs-mouse-bottom-panel-hide)))
 
 (defun org-srs-mouse-mode-update-panels (&rest _)
+  "Handle panel updates when the window configuration changes."
   (if (org-srs-child-frame-p)
       (with-selected-frame (org-srs-child-frame-root)
         (org-srs-mouse-mode-update-panels-1))
