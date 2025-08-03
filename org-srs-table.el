@@ -1,6 +1,13 @@
-;;; org-srs-table.el --- Table operation utilities -*- lexical-binding:t -*-
+;;; org-srs-table.el --- Table operation utilities -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
+
+;; Author: Bohong Huang <bohonghuang@qq.com>
+;; Maintainer: Bohong Huang <bohonghuang@qq.com>
+;; Version: 1.0
+;; Package-Requires: ((emacs "30.1") (org "9.7") (fsrs "6.0"))
+;; URL: https://github.com/bohonghuang/org-srs
+;; Keywords: outlines
 
 ;; This file is not part of GNU Emacs.
 
@@ -30,22 +37,6 @@
 
 (require 'org)
 (require 'org-element)
-
-(defmacro org-srs-log-define-org-element-bound-functions ()
-  "Define functions to access Org element boundaries for backward compatibility."
-  `(progn
-     ,@(unless (fboundp 'org-element-begin)
-         `((defsubst org-element-begin (node)
-             (org-element-property :begin node))
-           (defsubst \(setf\ org-element-begin\) (value node)
-             (setf (org-element-property :begin node) value))))
-     ,@(unless (fboundp 'org-element-end)
-         `((defsubst org-element-end (node)
-             (org-element-property :end node))
-           (defsubst \(setf\ org-element-end\) (value node)
-             (setf (org-element-property :end node) value))))))
-
-(org-srs-log-define-org-element-bound-functions)
 
 (defun org-srs-table-column-name-number-alist ()
   "Return an alist mapping the current table column names to their numeric indices."
@@ -262,24 +253,6 @@ Update the buffer with any modifications made by THUNK and restore point."
 The actual table is updated with any modifications after BODY's execution."
   (declare (indent 0))
   `(funcall org-srs-table-with-temp-buffer-function (lambda () . ,body)))
-
-(defvar org-table-get-stored-formulas@org-table-formula-named-column-lhs-support nil)
-
-(define-advice org-table-get-stored-formulas (:around (fun &rest args) org-table-formula-named-column-lhs-support)
-  (let ((org-table-get-stored-formulas@org-table-formula-named-column-lhs-support t))
-    (apply fun args)))
-
-(define-advice org-split-string (:filter-return (formulas) org-table-formula-named-column-lhs-support)
-  (if org-table-get-stored-formulas@org-table-formula-named-column-lhs-support
-      (mapcar
-       (lambda (formula)
-         (cl-loop for string = formula then (if column (replace-match column t t string 1) string)
-                  for end = 0 then (1+ start)
-                  for start = (or (string-match (rx "$" (group (+? (not blank))) (or "=" "..")) string end) (cl-return string))
-                  for name = (match-string-no-properties 1 string)
-                  for column = (alist-get name org-table-column-names nil nil #'string-equal)))
-       formulas)
-    formulas))
 
 (provide 'org-srs-table)
 ;;; org-srs-table.el ends here

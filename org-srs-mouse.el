@@ -1,6 +1,13 @@
-;;; org-srs-mouse.el --- Mouse/touchscreen support for review interactions -*- lexical-binding:t -*-
+;;; org-srs-mouse.el --- Mouse/touchscreen support for review interactions -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
+
+;; Author: Bohong Huang <bohonghuang@qq.com>
+;; Maintainer: Bohong Huang <bohonghuang@qq.com>
+;; Version: 1.0
+;; Package-Requires: ((emacs "30.1") (org "9.7") (fsrs "6.0"))
+;; URL: https://github.com/bohonghuang/org-srs
+;; Keywords: outlines
 
 ;; This file is not part of GNU Emacs.
 
