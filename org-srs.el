@@ -1,13 +1,13 @@
-;;; org-srs.el --- A flexible spaced repetition system for Org-mode  -*- lexical-binding:t -*-
+;;; org-srs.el --- A flexible spaced repetition system for Org-mode -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
 
 ;; Author: Bohong Huang <bohonghuang@qq.com>
 ;; Maintainer: Bohong Huang <bohonghuang@qq.com>
 ;; Version: 1.0
-;; Package-Requires: ((emacs "27.1") (org "9.6") (fsrs "6.0"))
+;; Package-Requires: ((emacs "30.1") (org "9.7") (fsrs "6.0"))
 ;; URL: https://github.com/bohonghuang/org-srs
-;; Keywords: memory, flashcards
+;; Keywords: outlines
 
 ;; This file is not part of GNU Emacs.
 
