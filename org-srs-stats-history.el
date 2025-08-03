@@ -39,6 +39,7 @@
   :prefix "org-srs-stats-history-")
 
 (defun org-srs-stats-history-full (source)
+  "Return a hash table mapping dates to review data from SOURCE."
   (let ((table (make-hash-table :test #'equal)))
     (org-srs-query
      `(and (not (or suspended new))
@@ -59,6 +60,11 @@
     table))
 
 (cl-defun org-srs-stats-history (source &optional (length (truncate (- (window-width) (* 5 2)) 3)))
+  "Return recent review history data from SOURCE for visualization.
+
+LENGTH specifies how many days of history to return, defaulting to a width
+suitable for window display.
+SOURCE specifies the review data source to query."
   (cl-loop with table = (org-srs-stats-history-full source)
            with labels and values
            for timestamp = (org-srs-timestamp-now) then (org-srs-timestamp+ timestamp -1 :day)

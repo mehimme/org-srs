@@ -26,12 +26,15 @@
 
 (require 'cl-lib)
 
-(defvar org-srs-child-frames nil)
+(defvar org-srs-child-frames nil
+  "Alist mapping parent frames and child frame names to child frames.")
 
 (cl-defun org-srs-child-frame-p (&optional (frame (selected-frame)))
+  "Return the parent frame and name if FRAME is a child frame."
   (cl-values-list (car (cl-rassoc frame org-srs-child-frames :test #'eq))))
 
 (cl-defun org-srs-child-frame-root (&optional (frame (selected-frame)))
+  "Return the root ancestor frame of FRAME by traversing parent frames."
   (if-let ((parent (cl-nth-value 0 (org-srs-child-frame-p frame))))
       (progn
         (cl-assert (eq parent (frame-parent frame)))
@@ -40,12 +43,27 @@
     frame))
 
 (cl-defun org-srs-child-frames-1 (&optional (name nil namep))
+  "Return a filtered alist of child frames from variable `org-srs-child-frames'.
+
+If NAME is provided, only return child frames whose name matches NAME.
+Otherwise, return the value of variable `org-srs-child-frames' as is."
   (if namep (cl-remove name org-srs-child-frames :key #'cadar :test-not #'eq) org-srs-child-frames))
 
 (defun org-srs-child-frames (&rest args)
+  "Return a filtered list of child frames matching ARGS.
+
+ARGS is passed to `org-srs-child-frames-1' which determines the filtering
+behavior."
   (mapcar #'cdr (apply #'org-srs-child-frames-1 args)))
 
 (defun \(setf\ org-srs-child-frames\) (value &rest args)
+  "Set the filtered child frame list matching ARGS to VALUE.
+
+ARGS is passed to `org-srs-child-frames-1' which determines the filtering
+behavior.
+
+This function can only be used to delete child frames, meaning any existing
+child frames not present in VALUE will be removed."
   (cl-assert (null value))
   (mapc #'delete-frame (apply #'org-srs-child-frames args))
   (setf org-srs-child-frames (cl-nset-difference org-srs-child-frames (apply #'org-srs-child-frames-1 args))))
@@ -57,6 +75,16 @@
                                (size (/ 16.0))
                                (position :bottom)
                                (buffer (get-buffer-create (format " *org-srs-child-frame %x/%s*" (sxhash-eq parent) name))))
+  "Create or retrieve a child frame with NAME relative to PARENT frame.
+
+PARENT specifies the parent frame, which defaults to the root frame.
+WINDOW specifies the window in PARENT used for positioning.
+SIZE determines the child frame dimensions as a fraction or cons of pixels.
+POSITION specifies the child frame position relative to WINDOW.
+BUFFER specifies the buffer to display in the child frame.
+
+This function ensures the child frame has no decorations and automatically
+manages frame size and position while displaying BUFFER."
   (cl-assert (null (frame-parent parent)))
   (cl-destructuring-bind (parent-left parent-top parent-right parent-bottom)
       (window-inside-absolute-pixel-edges window)

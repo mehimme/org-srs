@@ -55,6 +55,7 @@
   :type 'sexp)
 
 (cl-defun org-srs-schedule-fuzz-interval-default (interval &optional (unit (org-srs-schedule-fuzz-unit)))
+  "Return INTERVAL increased by UNIT when positive, otherwise return zero."
   (let ((interval-seconds (org-srs-time-desc-seconds interval))
         (unit-seconds (org-srs-time-desc-seconds unit)))
     (list (if (cl-plusp interval-seconds) (+ interval-seconds unit-seconds) 0.0) :sec)))
@@ -65,11 +66,13 @@
   :type 'function)
 
 (cl-defun org-srs-schedule-fuzz-interval-round (interval &optional (unit (org-srs-schedule-fuzz-unit)))
+  "Round INTERVAL to the nearest multiple of UNIT."
   (let ((interval-seconds (org-srs-time-desc-seconds interval))
         (unit-seconds (org-srs-time-desc-seconds unit)))
     (list (* (round interval-seconds unit-seconds) unit-seconds) :sec)))
 
 (cl-defun org-srs-schedule-fuzz-calculate-interval (time-scheduled time-review)
+  "Calculate a random fuzzing interval based on TIME-SCHEDULED and TIME-REVIEW."
   (cl-flet ((cl-clamp (number min max) (if (< number min) min (if (> number max) max number))))
     (let ((interval (org-srs-time-desc-seconds
                      (funcall (org-srs-schedule-fuzz-interval)
@@ -82,6 +85,7 @@
       (list (if (cl-plusp interval) (- (cl-random (* 2.0 interval)) interval) 0.0) :sec))))
 
 (defun org-srs-schedule-fuzz-due-timestamp ()
+  "Return a fuzzed due timestamp for the current review item."
   (save-excursion
     (let ((timestamp-scheduled (org-srs-table-field 'timestamp))
           (timestamp-review (progn (forward-line -1) (org-srs-table-field 'timestamp))))
@@ -91,6 +95,7 @@
                (org-srs-schedule-fuzz-interval-round (org-srs-schedule-fuzz-calculate-interval time-scheduled time-review)))))))
 
 (defun org-srs-schedule-fuzz-update-due-timestamp ()
+  "Update the due timestamp of the current review item with fuzzing applied."
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
         (org-srs-item-with-current org-srs-review-item

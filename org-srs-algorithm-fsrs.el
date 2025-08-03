@@ -34,6 +34,7 @@
 (require 'org-srs-schedule-step)
 
 (cl-defmethod org-srs-algorithm-ensure ((_type (eql 'fsrs)) &rest args)
+  "Return an FSRS scheduler instance initialized with ARGS."
   (setf args (cl-nsubstitute :parameters :weights args)
         args (cl-nsubstitute :desired-retention :request-retention args))
   (when-let ((maximum-interval (cl-getf args :maximum-interval)))
@@ -49,11 +50,18 @@
   (apply #'fsrs-make-scheduler :enable-fuzzing-p nil :learning-steps nil :relearning-steps nil args))
 
 (cl-defmethod org-srs-algorithm-repeat ((_fsrs fsrs-scheduler) (_args null))
+  "Return the initial algorithm state for the FSRS algorithm."
   '((rating . nil) (stability . 0.0) (difficulty . 0.0) (state . :new)))
 
-(defconst org-srs-algorithm-fsrs-card-slots (mapcar #'cl--slot-descriptor-name (cl--class-slots (cl-find-class 'fsrs-card))))
+(defconst org-srs-algorithm-fsrs-card-slots
+  (mapcar #'cl--slot-descriptor-name (cl--class-slots (cl-find-class 'fsrs-card)))
+  "List of slot names for class `fsrs-card'.")
 
 (defun org-srs-algorithm-fsrs-ensure-card (object)
+  "Ensure OBJECT is a valid `fsrs-card'.
+
+If OBJECT is an `fsrs-card', return it as is.
+If OBJECT is an alist, convert it to an `fsrs-card'."
   (cl-etypecase object
     (fsrs-card object)
     (list
@@ -71,6 +79,10 @@
               finally (cl-return card)))))
 
 (cl-defun org-srs-algorithm-fsrs-card-round-last-review (card &optional (now (org-srs-time-now)))
+  "Ensure CARD's last review time is properly rounded when reviewing at time NOW.
+
+This guarantees that reviewing a card the day before counts as at least one-day
+interval."
   (setf (fsrs-card-last-review card)
         (org-srs-timestamp+
          (org-srs-timestamp now)
@@ -84,6 +96,7 @@
   card)
 
 (cl-defmethod org-srs-algorithm-repeat ((fsrs fsrs-scheduler) (args list))
+  "Pass input ARGS to FSRS scheduler and return its output."
   (cl-loop with card-old = (org-srs-algorithm-fsrs-card-round-last-review (org-srs-algorithm-fsrs-ensure-card args))
            and rating = (alist-get 'rating args)
            and timestamp = (alist-get 'timestamp args (org-srs-timestamp-now))

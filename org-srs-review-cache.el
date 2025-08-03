@@ -45,6 +45,14 @@
   :prefix "org-srs-review-cache-")
 
 (cl-defstruct (org-srs-review-cache (:predicate org-srs-review-cache--p))
+  "Cache structure for review session items.
+
+SOURCE is the review session source.
+TIME is the last update time of the cache.
+QUERIES is an alist mapping queries to sets of review items.
+PENDING is an alist mapping potential due times to review items.
+DUE-TIMES is a hash table caching review items to their due times.
+MARKERS is a hash table caching review items to their markers."
   (source nil :type t)
   (time (floor (time-to-seconds)) :type fixnum)
   (queries nil :type list)
@@ -52,23 +60,34 @@
   (due-times (make-hash-table :test #'equal) :type hash-table)
   (markers (make-hash-table :test #'equal) :type hash-table))
 
-(defvar org-srs-review-cache nil)
-(defsubst org-srs-review-cache () org-srs-review-cache)
-(defsubst \(setf\ org-srs-review-cache\) (value) (setf org-srs-review-cache value))
+(defvar org-srs-review-cache nil
+  "Review cache used for the current review session.")
+
+(defsubst org-srs-review-cache ()
+  "Return the current review cache."
+  org-srs-review-cache)
+
+(defsubst \(setf\ org-srs-review-cache\) (value)
+  "Set the current review cache to VALUE."
+  (setf org-srs-review-cache value))
 
 (cl-pushnew #'org-srs-review-cache org-srs-reviewing-predicates)
 
 (defun org-srs-review-cache-clear (&rest _args)
+  "Clear the current review cache."
   (setf (org-srs-review-cache) nil))
 
 (cl-defun org-srs-review-cache-query-predicate-due-time (predicate)
+  "Extract the due time from PREDICATE if it contains a due clause."
   (pcase predicate
     (`(and ,(or 'due `(due . ,args)) . ,_)
      (cl-destructuring-bind (&optional (time (org-srs-time-now))) args time))))
 
-(defconst org-srs-review-cache-null (make-symbol (symbol-name 'nil)))
+(defconst org-srs-review-cache-null (make-symbol (symbol-name 'nil))
+  "Special nil indicating a cache miss for query results.")
 
 (cl-defun org-srs-review-cache-update-pending-1 (&optional (cache (org-srs-review-cache)))
+  "Update the pending items in CACHE."
   (setf (org-srs-review-cache-pending cache)
         (cl-loop with queries = (org-srs-review-cache-queries cache)
                  for time-predicate-item in (org-srs-review-cache-pending cache)
@@ -80,6 +99,7 @@
                  do (setf (gethash item (alist-get predicate queries nil nil #'equal)) t))))
 
 (cl-defun org-srs-review-cache-update-pending (&optional (cache (org-srs-review-cache)))
+  "Update the pending items in CACHE if necessary."
   (let ((time (floor (time-to-seconds (org-srs-time-now)))))
     (cl-assert (>= time (org-srs-review-cache-time cache)))
     (when (> time (org-srs-review-cache-time cache))
@@ -87,6 +107,7 @@
       (setf (org-srs-review-cache-time cache) time))))
 
 (defun org-srs-review-cache-query (predicate &optional source)
+  "Query the cache for items matching PREDICATE in SOURCE."
   (if-let ((cache (org-srs-review-cache)))
       (let ((queries (org-srs-review-cache-queries cache)))
         (cl-assert (org-srs-review-cache-source cache))
@@ -98,6 +119,7 @@
     org-srs-review-cache-null))
 
 (defun \(setf\ org-srs-review-cache-query\) (value predicate &optional source)
+  "Set the cached query result for PREDICATE in SOURCE to VALUE."
   (let ((cache (org-srs-review-cache)))
     (cl-assert (org-srs-review-cache-source cache))
     (when source (cl-assert (equal (org-srs-review-cache-source cache) source)))
@@ -124,9 +146,11 @@ from a large set of review items."
     (apply fun args)))
 
 (defun org-srs-review-cache-active-p ()
+  "Return non-nil if review caching is active in the current review session."
   (and (org-srs-reviewing-p) (org-srs-review-cache-p)))
 
 (defmacro org-srs-review-cache-ensure-gethash (key hash-table &optional default)
+  "Get the value from HASH-TABLE for KEY, setting it to DEFAULT if not found."
   (cl-once-only (key hash-table)
     (cl-with-gensyms (value null)
       `(let ((,value (gethash ,key ,hash-table ',null)))
@@ -135,6 +159,7 @@ from a large set of review items."
            ,value)))))
 
 (defun org-srs-review-cache-item (&rest args)
+  "Convert a review item specified by ARGS into a full specification for it."
   (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer) bufferp)) args
     (if bufferp args (list item id buffer))))
 
@@ -200,6 +225,7 @@ from a large set of review items."
     (apply fun args)))
 
 (cl-defun org-srs-review-cache-updated-item (&rest args)
+  "Update the review cache for the updated review item specified by ARGS."
   (when-let ((cache (org-srs-review-cache))
              (item (apply #'org-srs-review-cache-item (or args (cl-multiple-value-list (org-srs-item-at-point))))))
     (setf (org-srs-review-cache-pending cache) (cl-delete item (org-srs-review-cache-pending cache) :key #'cddr :test #'equal))
@@ -220,12 +246,14 @@ from a large set of review items."
                do (push (cons due-time (cons predicate item)) (org-srs-review-cache-pending cache))))))
 
 (cl-defun org-srs-review-cache-after-rate (&optional (item org-srs-review-item))
+  "Update the review cache after rating ITEM."
   (when (org-srs-review-cache-p)
     (apply #'org-srs-review-cache-updated-item item)))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
 
 (cl-defun org-srs-review-cache-cleanup-on-quit ()
+  "Clear the review cache when quitting a review session."
   (when (and (org-srs-review-cache-p) (not (org-srs-reviewing-p)))
     (org-srs-review-cache-clear)))
 
@@ -260,6 +288,7 @@ from a large set of review items."
     (apply fun args)))
 
 (defmacro org-srs-review-cache-without-query-predicate (&rest body)
+  "Execute BODY without using predicates that utilize the review cache."
   (declare (indent 0))
   `(progn
      (defvar org-srs-query-predicate@org-srs-review-cache)

@@ -129,9 +129,9 @@ your notes that you want to review. After modifying your notes, you
 can directly update the corresponding entry in your notes. The main
 command for this feature is the context-sensitive ~org-srs-embed-dwim~,
 whose logic is as follows:
-1. If the point is on an element without a corresponding exported
-   entry, that element will be exported as the content of the entry.
-   If the exported element contains clozes, corresponding items will
+1. If point is on an element without a corresponding exported entry,
+   that element will be exported as the content of the entry. If the
+   exported element contains clozes, corresponding items will
    automatically be created; otherwise, the content will be exported
    as the back of a flashcard. You will need to fill in the entry’s
    title in the pop-up buffer. The default export path is the current
@@ -139,10 +139,10 @@ whose logic is as follows:
    directory in ~org-directory~. For example, if your ~org-directory~ is
    =~/org= and the current file is =~/org/foo/bar.org=, the file where the
    entry is exported will be =~/org/org-srs/foo/bar.org=.
-2. If the point is on an element that already has a corresponding
-   exported entry, the exported entry will be updated with the current
+2. If point is on an element that already has a corresponding exported
+   entry, the exported entry will be updated with the current
    element's content.
-3. If the point is on a marker (shown as =#+SRS= when
+3. If point is on a marker (shown as =#+SRS= when
    ~org-srs-embed-overlay-mode~ is on) representing an embedded Org-srs
    entry, it will jump to the corresponding exported entry.
 

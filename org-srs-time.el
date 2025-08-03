@@ -39,10 +39,12 @@
 (defconst org-srs-time-units '((:sec . 1) (:minute . 60) (:hour . 3600) (:day . 86400)))
 
 (defun org-srs-time-desc-seconds (desc)
+  "Return the total seconds from time description DESC."
   (cl-loop for (amount unit) on desc by #'cddr
            sum (* amount (alist-get unit org-srs-time-units))))
 
 (defun org-srs-time-seconds-desc (seconds)
+  "Convert SECONDS to a time description."
   (cl-loop for (unit . amount) in (reverse org-srs-time-units)
            for (part remainder) = (cl-multiple-value-list (cl-truncate (or remainder seconds) amount))
            unless (zerop part)
@@ -50,12 +52,17 @@
            until (zerop remainder)))
 
 (defun org-srs-time+ (time &rest desc)
+  "Add the duration specified by DESC to TIME and return the resulting time value."
   (time-add time (seconds-to-time (org-srs-time-desc-seconds desc))))
 
 (defun org-srs-time-difference (time-a time-b)
+  "Calculate the difference in seconds between TIME-A and TIME-B."
   (- (time-to-seconds time-a) (time-to-seconds time-b)))
 
 (cl-defmacro org-srs-time-define-comparators (&optional (prefix 'org-srs-time))
+  "Define comparison functions for time differences.
+
+PREFIX is used for generating function names."
   (cl-with-gensyms (a b)
     `(progn . ,(cl-loop for comparator in '(< <= > >= = /=)
                         collect `(defun ,(intern (format "%s%s" prefix comparator)) (,a ,b)
@@ -64,6 +71,7 @@
 (org-srs-time-define-comparators)
 
 (defun org-srs-time-truncate-hms (time)
+  "Truncate the hours, minutes and seconds from TIME."
   (let* ((time (decode-time time))
          (hms (cl-subseq time 0 3)))
     (cl-values (encode-time (cl-fill time 0 :start 0 :end 3)) (cl-mapcan #'list hms '(:sec :minute :hour)))))
@@ -80,6 +88,10 @@
   :transform #'funcall)
 
 (cl-defun org-srs-time-today (&optional (now (org-srs-time-now)))
+  "Return the beginning of today relative to NOW.
+
+The start of day is determined by customizable option
+`org-srs-time-start-of-next-day'."
   (cl-multiple-value-bind (time hms) (org-srs-time-truncate-hms now)
     (let ((start-of-day (org-srs-time-start-of-next-day)))
       (if (< (org-srs-time-desc-seconds hms) (org-srs-time-desc-seconds start-of-day))
@@ -87,6 +99,7 @@
         (apply #'org-srs-time+ time start-of-day)))))
 
 (defun org-srs-time-today+1 ()
+  "Return the beginning of tomorrow relative to `org-srs-time-today'."
   (org-srs-time+ (org-srs-time-today) 1 :day))
 
 (org-srs-property-defcustom org-srs-time-tomorrow #'org-srs-time-today+1
@@ -96,13 +109,17 @@
   :transform #'funcall)
 
 (cl-defun org-srs-time-today-p (time)
+  "Return non-nil if TIME is between today and tomorrow."
   (let ((seconds (time-to-seconds time)))
     (and (<= (time-to-seconds (org-srs-time-today)) seconds)
          (< seconds (time-to-seconds (org-srs-time-tomorrow))))))
 
-(cl-deftype org-srs-timestamp () 'string)
+(cl-deftype org-srs-timestamp ()
+  "Timestamp type represented as an ISO 8601 formatted string."
+  'string)
 
 (defun org-srs-timestamp-time (timestamp)
+  "Convert TIMESTAMP to a time value."
   (cl-assert (string-match
               (rx (group (= 4 digit)) ?- (group (= 2 digit)) ?- (group (= 2 digit)) ?T
                   (group (= 2 digit)) ?: (group (= 2 digit)) ?: (group (= 2 digit)) ?Z)
@@ -117,32 +134,45 @@
    t))
 
 (cl-defun org-srs-timestamp-now (&optional (time (org-srs-time-now)))
+  "Return the current time as a timestamp.
+
+TIME specifies the time to convert and defaults to now."
   (format-time-string "%FT%TZ" time t))
 
 (defalias 'org-srs-timestamp 'org-srs-timestamp-now)
 
 (defun org-srs-timestamp-difference (time-a time-b)
+  "Return the difference in seconds between TIME-A and TIME-B."
   (- (time-to-seconds (org-srs-timestamp-time time-a))
      (time-to-seconds (org-srs-timestamp-time time-b))))
 
 (org-srs-time-define-comparators org-srs-timestamp)
 
-(defun org-srs-timestamp+ (time &rest desc)
+(defun org-srs-timestamp+ (timestamp &rest desc)
+  "Add the duration specified by DESC to the TIMESTAMP and return a new timestamp."
   (org-srs-timestamp-now
-   (+ (time-to-seconds (org-srs-timestamp-time time))
+   (+ (time-to-seconds (org-srs-timestamp-time timestamp))
       (org-srs-time-desc-seconds desc))))
 
 (defun org-srs-timestamp-min (&rest args)
+  "Return the earliest timestamp among ARGS."
   (cl-reduce (lambda (time-a time-b) (if (org-srs-timestamp> time-a time-b) time-b time-a)) args))
 
 (defun org-srs-timestamp-max (&rest args)
+  "Return the latest timestamp among ARGS."
   (cl-reduce (lambda (time-a time-b) (if (org-srs-timestamp> time-a time-b) time-a time-b)) args))
 
-(defconst org-srs-timestamp-date-regexp (rx (= 4 digit) "-" (= 2 digit) "-" (= 2 digit)))
-(defconst org-srs-timestamp-time-regexp (rx (= 2 digit) ":" (= 2 digit) ":" (= 2 digit)))
-(defconst org-srs-timestamp-regexp (rx (regexp org-srs-timestamp-date-regexp) "T" (regexp org-srs-timestamp-time-regexp) "Z"))
+(defconst org-srs-timestamp-date-regexp (rx (= 4 digit) "-" (= 2 digit) "-" (= 2 digit))
+  "Regular expression matching the date part of an ISO8601 timestamp.")
+
+(defconst org-srs-timestamp-time-regexp (rx (= 2 digit) ":" (= 2 digit) ":" (= 2 digit))
+  "Regular expression matching the time part of an ISO8601 timestamp.")
+
+(defconst org-srs-timestamp-regexp (rx (regexp org-srs-timestamp-date-regexp) "T" (regexp org-srs-timestamp-time-regexp) "Z")
+  "Regular expression matching a complete ISO8601 timestamp string.")
 
 (defun org-srs-timestamp-date (timestamp)
+  "Extract the date part from TIMESTAMP."
   (string-match org-srs-timestamp-date-regexp timestamp)
   (match-string-no-properties 0 timestamp))
 

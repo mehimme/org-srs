@@ -53,11 +53,13 @@
   :type 'sexp)
 
 (cl-defun org-srs-schedule-bury-due-timestamp (&optional (interval (org-srs-schedule-bury-interval)))
+  "Add INTERVAL to now if the current timestamp is due today."
   (let ((timestamp (org-srs-table-field 'timestamp)))
     (when (org-srs-timestamp< timestamp (org-srs-timestamp (org-srs-time-tomorrow)))
       (apply #'org-srs-timestamp+ (org-srs-timestamp-now) interval))))
 
 (cl-defun org-srs-schedule-bury-update-due-timestamp (&optional (interval (org-srs-schedule-bury-interval)))
+  "Postpone sibling review items by INTERVAL."
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
         (org-srs-item-with-current org-srs-review-item

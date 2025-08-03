@@ -48,11 +48,12 @@
   :type 'sexp)
 
 (org-srs-property-defcustom org-srs-schedule-step-relearning-steps '((10 :minute))
-  "Same as `org-srs-schedule-step-learning-steps', but for items being relearned."
+  "Number of relearning repetitions, and the delay between them."
   :group 'org-srs-schedule-step
   :type 'sexp)
 
 (defun org-srs-schedule-step-list ()
+  "Collect learning steps from the review item's history."
   (save-excursion
     (cl-loop with step-max = (1- most-positive-fixnum) and steps = nil
              initially (setf step 1)
@@ -68,9 +69,11 @@
              until (org-at-table-hline-p))))
 
 (cl-defun org-srs-schedule-step-learned-p (&optional (learning-steps (org-srs-schedule-step-learning-steps)) (step-list (org-srs-schedule-step-list)))
+  "Return non-nil if STEP-LIST of the item has completed all LEARNING-STEPS."
   (cl-some (apply-partially #'< (length learning-steps)) (cl-rest step-list)))
 
 (defun org-srs-schedule-step-steps ()
+  "Determine the current learning step and the corresponding step list."
   (let ((step-list (org-srs-schedule-step-list))
         (learning-steps (org-srs-schedule-step-learning-steps)))
     (cl-assert (cl-plusp (length step-list)))
@@ -81,6 +84,7 @@
        learning-steps))))
 
 (defun org-srs-schedule-step-state ()
+  "Determine the current learning or relearning state for the review item at point."
   (org-srs-property-let (org-srs-schedule-step-learning-steps org-srs-schedule-step-relearning-steps)
     (let ((learning-steps (org-srs-schedule-step-learning-steps))
           (relearning-steps (org-srs-schedule-step-relearning-steps)))
@@ -96,6 +100,7 @@
               :relearning)))))))
 
 (cl-defun org-srs-schedule-step-due-timestamp ()
+  "Calculate the review item's new due timestamp based on its (re)learning step."
   (save-excursion
     (let ((timestamp-scheduled (org-srs-table-field 'timestamp))
           (timestamp-review (progn (forward-line -1) (org-srs-table-field 'timestamp))))
@@ -120,6 +125,7 @@
                  (org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step-last) 1 :day))))))))))
 
 (defun org-srs-schedule-step-update-due-timestamp ()
+  "Update the due timestamp of the current review item based on its learning steps."
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
         (org-srs-item-with-current org-srs-review-item
@@ -128,6 +134,7 @@
             (org-srs-table-with-temp-buffer
               (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))
+
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-step-update-due-timestamp 50)
 

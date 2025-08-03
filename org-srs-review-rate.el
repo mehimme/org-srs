@@ -44,33 +44,39 @@
 (defvar org-srs-review-rating)
 
 (cl-eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconst org-srs-review-ratings '(:easy :good :hard :again)))
+  (defconst org-srs-review-ratings '(:easy :good :hard :again)
+    "List of rating keywords available for reviewing items."))
 
-(defvar org-srs-review-before-rate-hook nil)
+(defvar org-srs-review-before-rate-hook nil
+  "Hook run before a review item is rated.")
 
-(defvar org-srs-review-after-rate-hook nil)
+(defvar org-srs-review-after-rate-hook nil
+  "Hook run after a review item has been rated.")
 
-(cl-defun org-srs-review-rate (rating &rest args &aux (item (or args org-srs-review-item)))
-  (if org-srs-review-item
-      (let ((org-srs-reviewing-p (org-srs-reviewing-p)))
-        (prog2 (let ((org-srs-review-rating rating))
-                 (run-hooks 'org-srs-review-before-rate-hook))
-            (org-srs-item-with-current item
-              (org-srs-table-goto-starred-line)
-              (unless args
-                (cl-assert
-                 (time-less-p
-                  (org-srs-timestamp-time (org-srs-table-field 'timestamp))
-                  (org-srs-time-tomorrow))))
-              (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating))))
-          (let ((org-srs-review-rating rating))
-            (run-hooks 'org-srs-review-after-rate-hook)
-            (run-hooks 'org-srs-review-continue-hook))))
-    (cl-assert args)
-    (let ((org-srs-review-item args))
-      (apply #'org-srs-review-rate rating args))))
+(cl-defun org-srs-review-rate (rating &rest args)
+  "Rate the current review item specified by ARGS with RATING."
+  (let ((item (or args org-srs-review-item)))
+    (if org-srs-review-item
+        (let ((org-srs-reviewing-p (org-srs-reviewing-p)))
+          (prog2 (let ((org-srs-review-rating rating))
+                   (run-hooks 'org-srs-review-before-rate-hook))
+              (org-srs-item-with-current item
+                (org-srs-table-goto-starred-line)
+                (unless args
+                  (cl-assert
+                   (time-less-p
+                    (org-srs-timestamp-time (org-srs-table-field 'timestamp))
+                    (org-srs-time-tomorrow))))
+                (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating))))
+            (let ((org-srs-review-rating rating))
+              (run-hooks 'org-srs-review-after-rate-hook)
+              (run-hooks 'org-srs-review-continue-hook))))
+      (cl-assert args)
+      (let ((org-srs-review-item args))
+        (apply #'org-srs-review-rate rating args)))))
 
 (defmacro org-srs-review-define-rating-commands ()
+  "Define commands for each rating in `org-srs-review-ratings'."
   `(progn . ,(cl-loop for rating in org-srs-review-ratings
                       for rating-name = (string-trim (symbol-name rating) ":")
                       collect `(defun ,(intern (format "%s%s" 'org-srs-review-rate- rating-name)) ()
@@ -87,6 +93,7 @@
 (org-srs-review-define-rating-commands)
 
 (defun org-srs-review-rate-cleanup-hooks ()
+  "Clean up review rating hooks."
   (kill-local-variable 'org-srs-review-before-rate-hook)
   (kill-local-variable 'org-srs-review-after-rate-hook))
 

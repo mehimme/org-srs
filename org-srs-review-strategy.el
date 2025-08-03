@@ -44,15 +44,19 @@
 
 (defvar org-srs-review-source)
 
-(cl-defgeneric org-srs-review-strategy-items (type strategy &rest args))
+(cl-defgeneric org-srs-review-strategy-items (state strategy &rest args)
+  (:documentation "Return review items based on STATE and STRATEGY with ARGS."))
 
-(defvar org-srs-review-strategy-due-predicate 'due)
+(defvar org-srs-review-strategy-due-predicate 'due
+  "Predicate used in review strategies to determine if a review item is due.")
 
-(cl-defmethod org-srs-review-strategy-items (type (strategy list) &rest args)
+(cl-defmethod org-srs-review-strategy-items (state (strategy list) &rest args)
+  "Method to return items of STATE for STRATEGY with ARGS ignored."
   (cl-assert (null args))
-  (apply #'org-srs-review-strategy-items type strategy))
+  (apply #'org-srs-review-strategy-items state strategy))
 
 (defun org-srs-review-strategy-intersection (&rest args)
+  "Return the intersection of multiple review item lists in ARGS."
   (cl-loop with table = (make-hash-table :test #'equal)
            for items in args
            do (cl-loop for item in items
@@ -64,6 +68,7 @@
                              collect item))))
 
 (defun org-srs-review-strategy-difference (&rest args)
+  "Return review items in ARGS' first list excluding those in the rest."
   (cl-loop with table = (make-hash-table :test #'equal)
            initially (cl-loop for item in (cl-first args)
                               do (setf (gethash item table) t))
@@ -71,84 +76,106 @@
            do (cl-loop for item in items do (remhash item table))
            finally (cl-return (hash-table-keys table))))
 
-(cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'union)) &rest strategies)
-  (apply #'org-srs-review-strategy-union (mapcar (apply-partially #'org-srs-review-strategy-items type) strategies)))
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'union)) &rest strategies)
+  "Method to return items of STATE matching any of STRATEGIES using logical union."
+  (apply #'org-srs-review-strategy-union (mapcar (apply-partially #'org-srs-review-strategy-items state) strategies)))
 
-(cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'intersection)) &rest strategies)
-  (apply #'org-srs-review-strategy-intersection (mapcar (apply-partially #'org-srs-review-strategy-items type) strategies)))
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'intersection)) &rest strategies)
+  "Method to return items of STATE common to STRATEGIES using logical intersection."
+  (apply #'org-srs-review-strategy-intersection (mapcar (apply-partially #'org-srs-review-strategy-items state) strategies)))
 
-(cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'difference)) &rest strategies)
-  (apply #'org-srs-review-strategy-difference (mapcar (apply-partially #'org-srs-review-strategy-items type) strategies)))
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'difference)) &rest strategies)
+  "Method to return items of STATE matching STRATEGIES' first excluding the rest."
+  (apply #'org-srs-review-strategy-difference (mapcar (apply-partially #'org-srs-review-strategy-items state) strategies)))
 
-(cl-defmethod org-srs-review-strategy-items ((type (eql 'todo)) (_strategy (eql 'or)) &rest strategies)
-  (cl-loop for strategy in strategies thereis (org-srs-review-strategy-items type strategy)))
+(cl-defmethod org-srs-review-strategy-items ((state (eql 'todo)) (_strategy (eql 'or)) &rest strategies)
+  "Method to return items of STATE `todo' matching any of STRATEGIES."
+  (cl-loop for strategy in strategies thereis (org-srs-review-strategy-items state strategy)))
 
-(cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (_strategy (eql 'or)) &rest strategies)
-  (apply #'org-srs-review-strategy-items type 'union strategies))
+(cl-defmethod org-srs-review-strategy-items ((state (eql 'done)) (_strategy (eql 'or)) &rest strategies)
+  "Method to return items of STATE `done' matching any of STRATEGIES."
+  (apply #'org-srs-review-strategy-items state 'union strategies))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'due)) &rest _args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'todo)) (_strategy (eql 'due)) &rest _args)
+  "Method to return all due items to be reviewed."
   (org-srs-query `(and ,org-srs-review-strategy-due-predicate (not reviewed) (not suspended)) org-srs-review-source))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (strategy (eql 'due)) &rest args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'done)) (_strategy (eql 'due)) &rest _args)
+  "Method to return all reviewed items no longer due."
   (org-srs-review-strategy-difference
    (org-srs-query 'reviewed org-srs-review-source)
-   (apply #'org-srs-review-strategy-items 'todo strategy args)))
+   (org-srs-review-strategy-items 'todo 'due)))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'new)) &rest _args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'todo)) (_strategy (eql 'new)) &rest _args)
+  "Method to return all new items to be reviewed."
   (org-srs-query `(and ,org-srs-review-strategy-due-predicate new (not suspended)) org-srs-review-source))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (_strategy (eql 'new)) &rest _args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'done)) (_strategy (eql 'new)) &rest _args)
+  "Method to return all new items that have been reviewed."
   (org-srs-query 'learned org-srs-review-source))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'old)) &rest _args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'todo)) (_strategy (eql 'old)) &rest _args)
+  "Method to return all old items to be reviewed."
   (org-srs-query `(and ,org-srs-review-strategy-due-predicate (not new) (not reviewed) (not suspended)) org-srs-review-source))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (_strategy (eql 'old)) &rest _args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'done)) (_strategy (eql 'old)) &rest _args)
+  "Method to return all old items that have been reviewed."
   (org-srs-query '(and (not learned) reviewed) org-srs-review-source))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'reviewing)) &rest _args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'todo)) (_strategy (eql 'reviewing)) &rest _args)
+  "Method to return all items being reviewed but not yet completed."
   (org-srs-query `(and ,org-srs-review-strategy-due-predicate reviewed) org-srs-review-source))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (strategy (eql 'reviewing)) &rest args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'done)) (_strategy (eql 'reviewing)) &rest _args)
+  "Method to return all items that have been reviewed."
   (org-srs-review-strategy-difference
    (org-srs-query 'reviewed org-srs-review-source)
-   (apply #'org-srs-review-strategy-items 'todo strategy args)))
+   (org-srs-review-strategy-items 'todo 'reviewing)))
 
-(cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'limit)) &rest args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'todo)) (_strategy (eql 'limit)) &rest args)
+  "Method to return limited items to be reviewed matching the strategy in ARGS."
   (cl-destructuring-bind (strategy limit) args
     (when (< (length (org-srs-review-strategy-items 'done strategy)) limit)
       (org-srs-review-strategy-items 'todo strategy))))
 
-(cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (_strategy (eql 'limit)) &rest args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'done)) (_strategy (eql 'limit)) &rest args)
+  "Method to return all reviewed items matching the strategy in ARGS."
   (cl-destructuring-bind (strategy _limit) args
-    (org-srs-review-strategy-items type strategy)))
+    (org-srs-review-strategy-items 'done strategy)))
 
-(cl-defmethod org-srs-review-strategy-items ((type (eql 'todo)) (_strategy (eql 'subseq)) &rest args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'todo)) (_strategy (eql 'subseq)) &rest args)
+  "Method to return partial items to be reviewed matching the strategy in ARGS."
   (cl-destructuring-bind (strategy &optional (start 0) (end 1)) args
-    (let ((items (org-srs-review-strategy-items type strategy)))
+    (let ((items (org-srs-review-strategy-items 'todo strategy)))
       (cl-subseq items start (min end (length items))))))
 
-(cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (_strategy (eql 'subseq)) &rest args)
+(cl-defmethod org-srs-review-strategy-items ((_state (eql 'done)) (_strategy (eql 'subseq)) &rest args)
+  "Method to return all reviewed items matching the strategy in ARGS."
   (cl-destructuring-bind (strategy &rest args) args
-    (org-srs-review-strategy-items type strategy)))
+    (ignore args)
+    (org-srs-review-strategy-items 'done strategy)))
 
-(cl-defmethod org-srs-review-strategy-items (_type (_strategy (eql 'done)) &rest args)
+(cl-defmethod org-srs-review-strategy-items (_state (_strategy (eql 'done)) &rest args)
+  "Method to return all reviewed items matching the strategy in ARGS."
   (cl-destructuring-bind (strategy) args
     (org-srs-review-strategy-items 'done strategy)))
 
 (defun org-srs-review-strategy-union (&rest args)
+  "Return union of multiple review item lists in ARGS."
   (cl-loop with table = (make-hash-table :test #'equal)
            for items in args
            do (cl-loop for item in items do (setf (gethash item table) t))
            finally (cl-return (hash-table-keys table))))
 
-(cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'ahead)) &rest args)
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'ahead)) &rest args)
+  "Method to return items of STATE due in the future matching the strategy in ARGS."
   (cl-destructuring-bind (strategy &optional (time (org-srs-time-tomorrow))) args
     (let ((org-srs-review-strategy-due-predicate `(due ,time)))
       (cl-assert (org-srs-time< (org-srs-time-now) (org-srs-time-tomorrow)))
-      (org-srs-review-strategy-items type strategy))))
+      (org-srs-review-strategy-items state strategy))))
 
 (defun org-srs-review-strategy-item-marker< (marker-a marker-b)
+  "Return non-nil if MARKER-A appears before MARKER-B in buffer and position order."
   (let ((buffer-a (marker-buffer marker-a))
         (buffer-b (marker-buffer marker-b)))
     (if (eq buffer-a buffer-b)
@@ -157,8 +184,9 @@
             (name-b (or (buffer-file-name buffer-b) (buffer-name buffer-b))))
         (string< name-a name-b)))))
 
-(cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'sort)) &rest args)
-  (cl-destructuring-bind (strategy order &rest args &aux (items (org-srs-review-strategy-items type strategy))) args
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'sort)) &rest args)
+  "Method to return sorted items of STATE matching the strategy in ARGS."
+  (cl-destructuring-bind (strategy order &rest args &aux (items (org-srs-review-strategy-items state strategy))) args
     (cl-case order
       (position (cl-sort items #'org-srs-review-strategy-item-marker< :key (apply-partially #'apply #'org-srs-item-marker)))
       (due-date (cl-sort items #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time)))

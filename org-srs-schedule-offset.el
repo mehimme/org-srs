@@ -49,6 +49,7 @@
                  (const :tag "If scheduled for today" org-srs-time-today-p)))
 
 (defun org-srs-schedule-offset-learn-ahead-due-timestamp (timestamp-due)
+  "Postpone the review item by the learning ahead time based on TIMESTAMP-DUE."
   (save-excursion
     (let ((timestamp-scheduled (org-srs-table-field 'timestamp))
           (timestamp-review (progn (forward-line -1) (org-srs-table-field 'timestamp))))
@@ -64,16 +65,19 @@
 (defvar org-srs-schedule-offset-due-timestamp)
 
 (cl-defun org-srs-schedule-offset-due-timestamp (&optional (buffer (current-buffer)))
+  "Get the value of `org-srs-schedule-offset-due-timestamp' in BUFFER."
   (cl-assert (buffer-local-boundp 'org-srs-schedule-offset-due-timestamp buffer))
   (buffer-local-value 'org-srs-schedule-offset-due-timestamp buffer))
 
 (cl-defun \(setf\ org-srs-schedule-offset-due-timestamp\) (timestamp &optional (buffer (current-buffer)))
+  "Set the value of `org-srs-schedule-offset-due-timestamp' in BUFFER to TIMESTAMP."
   (cl-assert (xor (buffer-local-boundp 'org-srs-schedule-offset-due-timestamp buffer) timestamp))
   (if timestamp
       (setf (buffer-local-value 'org-srs-schedule-offset-due-timestamp buffer) timestamp)
     (kill-local-variable 'org-srs-schedule-offset-due-timestamp)))
 
 (defun org-srs-schedule-offset-save-due-timestamp ()
+  "Save the current due timestamp before it gets updated by rating."
   (when (bound-and-true-p org-srs-review-rating)
     (org-srs-item-with-current org-srs-review-item
       (org-srs-table-goto-starred-line)
@@ -82,6 +86,7 @@
 (add-hook 'org-srs-review-before-rate-hook #'org-srs-schedule-offset-save-due-timestamp)
 
 (defun org-srs-schedule-offset-update-due-timestamp (&optional timestamp-due)
+  "Offset the due timestamp after reviewing an item optionally using TIMESTAMP-DUE."
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
         (let ((timestamp-due (or timestamp-due (cl-shiftf (org-srs-schedule-offset-due-timestamp) nil))))

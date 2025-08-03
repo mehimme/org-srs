@@ -35,10 +35,12 @@
   :prefix "org-srs-stats-interval-")
 
 (cl-defun org-srs-stats-intervals (&optional (ratings org-srs-review-ratings))
+  "Calculate the time intervals until the next review for RATINGS."
   (org-srs-stats-with-rating-simulator (rate)
     (cl-loop for rating in ratings nconc (list rating (rate rating)))))
 
 (defun org-srs-stats-interval (rating)
+  "Return the time interval until the next review for RATING."
   (cl-getf (org-srs-stats-intervals (list rating)) rating))
 
 (provide 'org-srs-stats-interval)
