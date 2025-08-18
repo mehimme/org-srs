@@ -176,7 +176,7 @@ When COLUMN is non-nil, move to COLUMN first before getting the field."
   (when column (cl-assert (org-srs-table-goto-column column)))
   (org-no-properties (org-table-get nil nil)))
 
-(defun \(setf\ org-srs-table-field\) (value &optional column)
+(cl-defmethod (setf org-srs-table-field) (value &optional column)
   "Set the field contents at point in the current table to VALUE.
 
 When COLUMN is non-nil, move to COLUMN first before setting the field."

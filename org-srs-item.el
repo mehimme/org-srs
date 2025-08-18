@@ -153,7 +153,7 @@ ARGS are passed to `org-srs-item-marker' to locate the review item."
     (save-excursion
       (org-srs-item-due-timestamp-1))))
 
-(defun \(setf\ org-srs-item-due-timestamp\) (value &rest args)
+(cl-defmethod (setf org-srs-item-due-timestamp) (value &rest args)
   "Set the due timestamp of the review item specified by ARGS to VALUE."
   (if args
       (org-srs-item-with-current args

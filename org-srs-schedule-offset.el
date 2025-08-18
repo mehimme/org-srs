@@ -76,7 +76,7 @@
   (cl-assert (buffer-local-boundp 'org-srs-schedule-offset-due-timestamp buffer))
   (buffer-local-value 'org-srs-schedule-offset-due-timestamp buffer))
 
-(cl-defun \(setf\ org-srs-schedule-offset-due-timestamp\) (timestamp &optional (buffer (current-buffer)))
+(cl-defmethod (setf org-srs-schedule-offset-due-timestamp) (timestamp &optional (buffer (current-buffer)))
   "Set the value of `org-srs-schedule-offset-due-timestamp' in BUFFER to TIMESTAMP."
   (cl-assert (xor (buffer-local-boundp 'org-srs-schedule-offset-due-timestamp buffer) timestamp))
   (if timestamp

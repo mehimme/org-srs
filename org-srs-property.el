@@ -57,7 +57,7 @@
       (when-let ((property (org-element-property :attr_srs (org-element-at-point-no-context))))
         (read (concat "(" (cl-reduce (lambda (acc it) (concat acc " " it)) property) ")"))))))
 
-(cl-defun \(setf\ org-srs-property-plist\) (value &optional (position (point)))
+(cl-defmethod (setf org-srs-property-plist) (value &optional (position (point)))
   "Set the property list specified by #+ATTR_SRS to VALUE at POSITION."
   (save-excursion
     (let ((header "#+ATTR_SRS: "))
