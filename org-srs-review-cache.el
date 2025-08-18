@@ -70,11 +70,11 @@ MARKERS is a hash table caching review items to their markers."
 (defvar org-srs-review-cache nil
   "Review cache used for the current review session.")
 
-(defsubst org-srs-review-cache ()
+(defun org-srs-review-cache ()
   "Return the current review cache."
   org-srs-review-cache)
 
-(defsubst \(setf\ org-srs-review-cache\) (value)
+(cl-defmethod (setf org-srs-review-cache) (value)
   "Set the current review cache to VALUE."
   (setf org-srs-review-cache value))
 
@@ -125,7 +125,7 @@ MARKERS is a hash table caching review items to their markers."
           org-srs-review-cache-null))
     org-srs-review-cache-null))
 
-(defun \(setf\ org-srs-review-cache-query\) (value predicate &optional source)
+(cl-defmethod (setf org-srs-review-cache-query) (value predicate &optional source)
   "Set the cached query result for PREDICATE in SOURCE to VALUE."
   (let ((cache (org-srs-review-cache)))
     (cl-assert (org-srs-review-cache-source cache))

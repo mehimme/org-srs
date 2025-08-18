@@ -85,7 +85,7 @@
   "Return the display text property from OVERLAY."
   (overlay-get overlay 'display))
 
-(defun \(setf\ org-srs-item-cloze-overlay-text\) (text overlay)
+(cl-defmethod (setf org-srs-item-cloze-overlay-text) (text overlay)
   "Set the display text of OVERLAY to TEXT."
   (overlay-put
    overlay 'display

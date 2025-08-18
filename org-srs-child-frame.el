@@ -63,7 +63,7 @@ ARGS is passed to `org-srs-child-frames-1' which determines the filtering
 behavior."
   (mapcar #'cdr (apply #'org-srs-child-frames-1 args)))
 
-(defun \(setf\ org-srs-child-frames\) (value &rest args)
+(cl-defmethod (setf org-srs-child-frames) (value &rest args)
   "Set the filtered child frame list matching ARGS to VALUE.
 
 ARGS is passed to `org-srs-child-frames-1' which determines the filtering
