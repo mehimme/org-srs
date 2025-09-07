@@ -48,8 +48,8 @@
   :group 'org-srs
   :prefix "org-srs-item-")
 
-(defalias 'org-srs-item-begin 'org-srs-log-begin)
-(defalias 'org-srs-item-end 'org-srs-log-end)
+(defalias 'org-srs-item-begin #'org-srs-log-begin)
+(defalias 'org-srs-item-end #'org-srs-log-end)
 
 (defconst org-srs-item-regexp (rx "srsitem:" (group (+ (not (any ?: blank control)))) (? "::" (group (+ (not (any blank control))))))
   "Regular expression matching Org-srs item links.")

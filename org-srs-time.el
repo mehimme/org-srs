@@ -146,7 +146,7 @@ The start of day is determined by customizable option
 TIME specifies the time to convert and defaults to now."
   (format-time-string "%FT%TZ" time t))
 
-(defalias 'org-srs-timestamp 'org-srs-timestamp-now)
+(defalias 'org-srs-timestamp #'org-srs-timestamp-now)
 
 (defun org-srs-timestamp-difference (time-a time-b)
   "Return the difference in seconds between TIME-A and TIME-B."

@@ -145,8 +145,8 @@ Return the updated parameters if successful."
     (org-srs-log-beginning-of-drawer)
     (org-fold-hide-drawer-toggle t)))
 
-(defalias 'org-srs-log-begin 'org-srs-table-element-begin)
-(defalias 'org-srs-log-end 'org-srs-table-element-end)
+(defalias 'org-srs-log-begin #'org-srs-table-element-begin)
+(defalias 'org-srs-log-end #'org-srs-table-element-end)
 
 (provide 'org-srs-log)
 ;;; org-srs-log.el ends here
