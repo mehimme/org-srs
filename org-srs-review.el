@@ -70,7 +70,7 @@
 (defvar org-srs-review-finish-hook nil
   "Hook run when all review items have been completed.")
 
-(defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
+(defalias 'org-srs-review-add-hook-once #'org-srs-item-add-hook-once)
 
 (org-srs-property-defcustom org-srs-review-new-items-per-day 20
   "Maximum number of new item to introduce in a day."
