@@ -493,19 +493,15 @@ TYPE and PROPS are passed to `org-srs-item-cloze' as is."
 
 (cl-defmethod org-srs-item-new-interactively ((_type (eql 'cloze)) &rest args)
   "Method for interactively creating a new review item of type `cloze' with ARGS."
-  (if args (cl-call-next-method)
-    (condition-case err
-        (progn
-          (org-srs-item-cloze-dwim)
-          (deactivate-mark)
-          (org-srs-item-new (org-srs-item-cloze-item-at-point)))
-      (cl-no-applicable-method
-       (let ((element (org-element-at-point)))
-         (cl-case (org-element-type element)
-           (headline
-            (cl-assert (= (org-element-begin element) (org-entry-beginning-position)))
-            (cl-call-next-method))
-           (t (signal (car err) (cdr err)))))))))
+  (if (null args)
+      (if (region-active-p)
+          (if-let ((clozes (org-srs-item-cloze-collect (region-beginning) (region-end))))
+              (org-srs-item-new (cons 'cloze (mapcar #'cl-first clozes)))
+            (org-srs-item-cloze-dwim)
+            (deactivate-mark)
+            (org-srs-item-new (org-srs-item-cloze-item-at-point)))
+        (org-srs-item-new (or 'cloze (org-srs-item-cloze-item-at-point))))
+    (cl-call-next-method)))
 
 (provide 'org-srs-item-cloze)
 ;;; org-srs-item-cloze.el ends here
