@@ -26,8 +26,7 @@
 
 ;;; Commentary:
 
-;; This package provides operations related to the review log for
-;; Org-srs.
+;; This package provides operations related to review logs in Org-srs.
 
 ;;; Code:
 
@@ -39,6 +38,7 @@
 
 (require 'org-srs-algorithm)
 (require 'org-srs-time)
+(require 'org-srs-entry)
 (require 'org-srs-table)
 
 (defun org-srs-log-insert ()
@@ -110,18 +110,18 @@ Return the updated parameters if successful."
 (defun org-srs-log-end-of-drawer ()
   "Move point to the end of the Org-srs drawer, creating it if necessary."
   (save-restriction
-    (org-back-to-heading)
+    (org-back-to-heading-or-point-min)
     (let ((entry-start (point))
-          (entry-end (org-entry-end-position))
+          (entry-end (org-srs-entry-end-position))
           (drawer-start-regexp (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol))
           (drawer-end-regexp (rx bol (* blank) ":END:" (* blank) eol)))
       (if (re-search-forward drawer-start-regexp entry-end t)
           (progn
             (goto-char (org-element-end (org-element-at-point)))
             (re-search-backward drawer-end-regexp entry-start))
-        (org-end-of-meta-data t)
+        (org-srs-entry-end-of-meta-data t)
         (unless (re-search-backward drawer-end-regexp entry-start t)
-          (org-back-to-heading))
+          (org-back-to-heading-or-point-min))
         (end-of-line)
         (newline-and-indent)
         (insert ":" org-srs-log-drawer-name ":")
@@ -131,12 +131,10 @@ Return the updated parameters if successful."
 
 (defun org-srs-log-beginning-of-drawer ()
   "Move point to the beginning of the Org-srs drawer, creating it if necessary."
-  (save-restriction
-    (org-narrow-to-subtree)
-    (org-back-to-heading)
-    (let ((heading-start (point)))
-      (org-srs-log-end-of-drawer)
-      (re-search-backward (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol) heading-start))))
+  (org-back-to-heading-or-point-min)
+  (let ((heading-start (point)))
+    (org-srs-log-end-of-drawer)
+    (re-search-backward (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol) heading-start)))
 
 (cl-defun org-srs-log-hide-drawer (&optional (position (point)))
   "Toggle the visibility of the Org-srs drawer at POSITION."

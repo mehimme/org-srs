@@ -40,6 +40,7 @@
 (require 'org-element)
 
 (require 'org-srs-time)
+(require 'org-srs-entry)
 (require 'org-srs-item)
 (require 'org-srs-review)
 (require 'org-srs-review-rate)
@@ -276,7 +277,7 @@ from a large set of review items."
     (mapc
      (apply-partially #'apply #'org-srs-review-cache-updated-item)
      (org-srs-property-let ((org-srs-review-cache-p nil))
-       (org-srs-query '(and) (cons (org-entry-beginning-position) (org-entry-end-position)))))))
+       (org-srs-query '(and) (cons (org-srs-entry-beginning-position) (org-srs-entry-end-position)))))))
 
 (define-advice org-srs-query-predicate (:around (fun &rest args) org-srs-review-cache)
   (if (and (org-srs-review-cache-active-p) (not (bound-and-true-p org-srs-query-predicate@org-srs-review-cache)))

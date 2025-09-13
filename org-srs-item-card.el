@@ -38,8 +38,8 @@
 (require 'org)
 
 (require 'org-srs-property)
+(require 'org-srs-entry)
 (require 'org-srs-item)
-(require 'org-srs-review)
 
 (defgroup org-srs-item-card nil
   "Flashcard type for review items."
@@ -50,36 +50,75 @@
   "Method to set the default item type to `card' with ARGS passed as is."
   (apply #'org-srs-item-review 'card args))
 
+(defun org-srs-item-card-regions-1 (&optional scope)
+  "Determine the front and back regions of the current flashcard within SCOPE."
+  (let ((front nil) (back nil))
+    (org-map-entries
+     (lambda ()
+       (let ((heading (cl-fifth (org-heading-components))))
+         (cond
+          ((string-equal-ignore-case heading "Front")
+           (setf front (cons (point) (org-srs-entry-end-position))))
+          ((string-equal-ignore-case heading "Back")
+           (setf back (cons (point) (org-srs-entry-end-position)))))))
+     nil scope)
+    (cl-values front back)))
+
+(defun org-srs-item-card-regions-tree ()
+  "Determine the front and back regions of the current flashcard in tree scope."
+  (cl-multiple-value-bind (front back) (org-srs-item-card-regions-1 'tree)
+    (let ((heading (save-excursion
+                     (org-back-to-heading)
+                     (cons (point) (line-end-position))))
+          (content (cons
+                    (save-excursion
+                      (org-srs-entry-end-of-meta-data t)
+                      (point))
+                    (org-srs-entry-end-position))))
+      (if front
+          (if back
+              (cl-values front back)
+            (error "Unable to determine the back of the flashcard"))
+        (if back
+            (cl-values content back)
+          (cl-values heading content))))))
+
+(defun org-srs-item-card-regions-file ()
+  "Determine the front and back regions of the current flashcard in file scope."
+  (cl-multiple-value-bind (front back) (org-srs-item-card-regions-1 'file)
+    (let* ((meta-end (save-excursion
+                       (org-srs-entry-end-of-meta-data t)
+                       (point)))
+           (body-start (save-excursion
+                         (ignore-error user-error
+                           (cl-loop initially (goto-char meta-end) (org-backward-element) (org-forward-element)
+                                    while (org-at-keyword-p)
+                                    do (org-forward-element)
+                                    finally (cl-return (point))))))
+           (title (save-excursion
+                    (goto-char (point-min))
+                    (when (re-search-forward (rx bol (* blank) "#+title:" (* blank)) body-start t)
+                      (cons (match-end 0) (line-end-position)))))
+           (preface (when body-start
+                      (save-excursion
+                        (when (re-search-forward org-outline-regexp-bol nil t)
+                          (when (< body-start (match-beginning 0))
+                            (cons body-start (1- (match-beginning 0))))))))
+           (body (cons body-start (point-max))))
+      (if front
+          (if back
+              (cl-values front back)
+            (error "Unable to determine the back of the flashcard"))
+        (if back
+            (cl-values (or preface title) back)
+          (cl-assert title nil "Unable to determine the front of the flashcard")
+          (cl-values title body))))))
+
 (defun org-srs-item-card-regions ()
   "Return the front and back regions of the current flashcard as cons cells."
-  (cl-flet ((org-entry-end-position (&aux (position (org-entry-end-position)))
-              (if (= position (point-max)) (1+ position) position)))
-    (let ((initalp t) (front nil) (back nil))
-      (org-map-entries
-       (lambda ()
-         (unless (cl-shiftf initalp nil)
-           (let ((heading (cl-fifth (org-heading-components))))
-             (cond
-              ((string-equal-ignore-case heading "Front")
-               (setf front (cons (point) (1- (org-entry-end-position)))))
-              ((string-equal-ignore-case heading "Back")
-               (setf back (cons (point) (1- (org-entry-end-position)))))))))
-       nil 'tree)
-      (let ((heading (save-excursion
-                       (org-back-to-heading)
-                       (cons (point) (line-end-position))))
-            (content (cons
-                      (save-excursion
-                        (org-end-of-meta-data t)
-                        (point))
-                      (1- (org-entry-end-position)))))
-        (if front
-            (if back
-                (cl-values front back)
-              (error "Unable to determine the back of the card"))
-          (if back
-              (cl-values content back)
-            (cl-values heading content)))))))
+  (if (org-before-first-heading-p)
+      (org-srs-item-card-regions-file)
+    (org-srs-item-card-regions-tree)))
 
 (defun org-srs-item-card-put-ellipsis-overlay (start end)
   "Create an overlay from START to END that displays as ellipsis."
@@ -95,9 +134,7 @@
   "Show the current flashcard entirely by unfolding the text and removing ellipses."
   (save-excursion
     (org-fold-show-subtree)
-    (org-end-of-subtree)
-    (org-srs-item-card-remove-ellipsis-overlays
-     (org-entry-beginning-position) (point))))
+    (org-srs-item-card-remove-ellipsis-overlays)))
 
 (cl-defun org-srs-item-card-hide (&optional (side :back))
   "Hide either the front or back SIDE of the current flashcard."
@@ -106,18 +143,18 @@
     (:front
      (cl-destructuring-bind (beg . end) (cl-nth-value 0 (org-srs-item-card-regions))
        (cond
-        ((= (save-excursion (org-back-to-heading) (point)) beg)
+        ((= (save-excursion (org-back-to-heading-or-point-min) (point)) beg)
          (save-excursion
            (goto-char beg)
            (re-search-forward org-outline-regexp-bol)
            (org-srs-item-card-put-ellipsis-overlay (point) end)))
-        ((save-excursion (goto-char beg) (org-at-heading-p))
-         (save-excursion (goto-char beg) (org-fold-hide-entry)))
+        ((save-excursion (goto-char beg) (and (org-at-heading-p) (<= end (org-srs-entry-end-position))))
+         (save-excursion (goto-char beg) (org-fold-hide-subtree)))
         (t (org-srs-item-card-put-ellipsis-overlay beg end)))))
     (:back
      (cl-destructuring-bind (beg . end) (cl-nth-value 1 (org-srs-item-card-regions))
-       (if (save-excursion (goto-char beg) (org-at-heading-p))
-           (save-excursion (goto-char beg) (org-fold-hide-entry))
+       (if (save-excursion (goto-char beg) (and (org-at-heading-p) (<= end (org-srs-entry-end-position))))
+           (save-excursion (goto-char beg) (org-fold-hide-subtree))
          (org-srs-item-card-put-ellipsis-overlay beg end))))))
 
 (cl-defmethod org-srs-item-review ((type (eql 'card)) &rest args)

@@ -45,6 +45,7 @@
 (require 'org-habit)
 
 (require 'org-srs-property)
+(require 'org-srs-entry)
 (require 'org-srs-item)
 (require 'org-srs-item-cloze)
 
@@ -345,8 +346,8 @@ embedded cloze deletions when no active region is present."
      (apply-partially #'call-interactively #'org-srs-item-cloze-update))
     (all-at-once
      (lambda ()
-       (goto-char (org-entry-beginning-position))
-       (when (re-search-forward org-srs-item-cloze-regexp (org-entry-end-position) t)
+       (goto-char (org-srs-entry-beginning-position))
+       (when (re-search-forward org-srs-item-cloze-regexp (org-srs-entry-end-position) t)
          (ignore-errors (org-srs-item-new 'cloze)))))))
 
 (cl-defgeneric org-srs-embed-export-entry (type props)
@@ -442,7 +443,7 @@ Return the number of comments removed."
              (goto-char position)
              (org-narrow-to-subtree)
              (when front (org-edit-headline front))
-             (org-end-of-meta-data t)
+             (org-srs-entry-end-of-meta-data t)
              (delete-region (point) (point-max))
              (save-excursion (insert content))
              (indent-region (point) (point-max))

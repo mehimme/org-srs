@@ -35,6 +35,7 @@
 (require 'org-srs-property)
 (require 'org-srs-time)
 (require 'org-srs-table)
+(require 'org-srs-entry)
 (require 'org-srs-log)
 (require 'org-srs-query)
 
