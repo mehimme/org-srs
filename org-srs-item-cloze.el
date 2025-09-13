@@ -41,6 +41,7 @@
 (require 'org-element)
 
 (require 'org-srs-property)
+(require 'org-srs-entry)
 (require 'org-srs-item)
 (require 'org-srs-review)
 (require 'org-srs-query)
@@ -103,8 +104,8 @@
     overlay))
 
 (cl-defun org-srs-item-cloze-remove-overlays (&optional
-                                              (start (org-entry-beginning-position))
-                                              (end (org-entry-end-position)))
+                                              (start (org-srs-entry-beginning-position))
+                                              (end (org-srs-entry-end-position)))
   "Remove all cloze overlays between START and END."
   (remove-overlays start end 'category 'org-srs-item-cloze))
 
@@ -186,8 +187,8 @@ TEXT is the string containing the answer to be shown between brackets."
   (cl-loop with (before . after) = (or (org-srs-item-cloze-bounds) (cons (point) (point)))
            for expected from 1
            for (actual) in (cl-sort
-                            (nconc (org-srs-item-cloze-collect (org-entry-beginning-position) before)
-                                   (org-srs-item-cloze-collect after (org-entry-end-position)))
+                            (nconc (org-srs-item-cloze-collect (org-srs-entry-beginning-position) before)
+                                   (org-srs-item-cloze-collect after (org-srs-entry-end-position)))
                             #'< :key #'car)
            while (= actual expected)
            finally (cl-return expected)))
@@ -330,8 +331,8 @@ word is at point."
 
 When INHERIT-HISTORY-P is non-nil, preserve existing review history by
 transferring it to matching cloze items."
-  (let* ((start (org-entry-beginning-position))
-         (end (org-entry-end-position))
+  (let* ((start (org-srs-entry-beginning-position))
+         (end (org-srs-entry-end-position))
          (items (cl-delete 'cloze (cl-mapcar #'cl-first (org-srs-query '(and) (cons start end))) :key #'car :test-not #'eq))
          (clozes (org-srs-item-cloze-collect start end)))
     (setf inherit-history-p (if (= (length items) (length clozes))
@@ -394,7 +395,7 @@ delete, or modify a cloze deletion."
              (when (called-interactively-p 'interactive)
                (apply-partially #'y-or-n-p "Sequentially inherit review history from before the cloze modification?"))))
         (cl-loop initially (org-srs-item-cloze-update-entry nil)
-                 for bounds in (cl-loop for (nil start end) in (org-srs-item-cloze-collect (org-entry-beginning-position) (org-entry-end-position))
+                 for bounds in (cl-loop for (nil start end) in (org-srs-item-cloze-collect (org-srs-entry-beginning-position) (org-srs-entry-end-position))
                                         collect (cons (copy-marker start) (copy-marker end)))
                  do (update-cloze bounds)
                  finally (org-srs-item-cloze-update-entry t)))

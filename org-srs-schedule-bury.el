@@ -38,7 +38,7 @@
 (require 'org-srs-property)
 (require 'org-srs-review)
 (require 'org-srs-review-rate)
-(require 'org-srs-log)
+(require 'org-srs-entry)
 (require 'org-srs-table)
 (require 'org-srs-item)
 (require 'org-srs-time)
@@ -72,7 +72,7 @@
         (org-srs-item-with-current org-srs-review-item
           (when (org-srs-schedule-bury-sibling-items-p)
             (cl-loop with current-item = (cl-multiple-value-list (org-srs-item-at-point))
-                     for item in (org-srs-query-region #'always (org-entry-beginning-position) (org-entry-end-position))
+                     for item in (org-srs-query-region #'always (org-srs-entry-beginning-position) (org-srs-entry-end-position))
                      unless (equal item current-item)
                      do (org-srs-item-with-current item
                           (org-srs-table-goto-starred-line)

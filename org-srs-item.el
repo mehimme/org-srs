@@ -273,8 +273,9 @@ The returned function can be used to call `remove-hook' if needed."
   "Narrow to the current subtree.
 
 Automatically widen after reviewing the current item."
-  (org-back-to-heading)
-  (org-narrow-to-subtree)
+  (org-back-to-heading-or-point-min)
+  (unless (org-before-first-heading-p)
+    (org-narrow-to-subtree))
   (org-srs-item-add-hook-once 'org-srs-review-continue-hook #'widen))
 
 (defvar org-srs-item-before-confirm-hook nil

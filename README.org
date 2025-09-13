@@ -97,20 +97,48 @@ You can easily create a flashcard by using ~org-srs-item-create~ in an
 entry and selecting ~card~. There are multiple supported formats for the
 front and back of a flashcard:
 
-#+BEGIN_SRC org
-  # Card 1
-  ,* The card front
-  The card back
-  ,* Card 2
-  The card front
-  ,** Back
-  The card back
-  ,* Card 3
-  ,** Front
-  The card front
-  ,** Back
-  The card back
-#+END_SRC
+- *File-level flashcards* \\
+  #+BEGIN_SRC org
+    # Card 1
+    ,#+TITLE: The card front
+    The card back
+  #+END_SRC
+
+  #+BEGIN_SRC org
+    ,#+TITLE: Card 2
+    The card front
+    ,* Back
+    The card back
+  #+END_SRC
+
+  #+BEGIN_SRC org
+    ,#+TITLE: Card 3
+    ,* Front
+    The card front
+    ,* Back
+    The card back
+  #+END_SRC
+- *Heading-level flashcards* \\
+  #+BEGIN_SRC org
+    # Card 1
+    ,* The card front
+    The card back
+  #+END_SRC
+
+  #+BEGIN_SRC org
+    ,* Card 2
+    The card front
+    ,** Back
+    The card back
+  #+END_SRC
+
+  #+BEGIN_SRC org
+    ,* Card 3
+    ,** Front
+    The card front
+    ,** Back
+    The card back
+  #+END_SRC
 ** Cloze Deletion
 [[https://github.com/user-attachments/assets/176fb6ef-87a2-42b9-ad4e-7639b6371254][Demo]]
 
