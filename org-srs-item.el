@@ -200,7 +200,7 @@ ARGS are passed to `org-srs-item-marker' to locate the review item."
     (let ((element (org-element-at-point)))
       (cons (org-element-begin element) (org-element-end element)))))
 
-(cl-defun org-srs-item-delete (&rest args)
+(defun org-srs-item-delete (&rest args)
   "Delete the review item specified by ARGS."
   (cl-destructuring-bind (start . end) (apply #'org-srs-item-bounds args)
     (delete-region start end)))

@@ -115,7 +115,7 @@ The start of day is determined by customizable option
   :type 'function
   :transform #'funcall)
 
-(cl-defun org-srs-time-today-p (time)
+(defun org-srs-time-today-p (time)
   "Return non-nil if TIME is between today and tomorrow."
   (let ((seconds (time-to-seconds time)))
     (and (<= (time-to-seconds (org-srs-time-today)) seconds)

@@ -85,7 +85,7 @@ MARKERS is a hash table caching review items to their markers."
   "Clear the current review cache."
   (setf (org-srs-review-cache) nil))
 
-(cl-defun org-srs-review-cache-query-predicate-due-time (predicate)
+(defun org-srs-review-cache-query-predicate-due-time (predicate)
   "Extract the due time from PREDICATE if it contains a due clause."
   (pcase predicate
     (`(and ,(or 'due `(due . ,args)) . ,_)
@@ -232,7 +232,7 @@ from a large set of review items."
   (org-srs-property-let (org-srs-review-cache-p)
     (apply fun args)))
 
-(cl-defun org-srs-review-cache-updated-item (&rest args)
+(defun org-srs-review-cache-updated-item (&rest args)
   "Update the review cache for the updated review item specified by ARGS."
   (when-let ((cache (org-srs-review-cache))
              (item (apply #'org-srs-review-cache-item (or args (cl-multiple-value-list (org-srs-item-at-point))))))
@@ -260,7 +260,7 @@ from a large set of review items."
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
 
-(cl-defun org-srs-review-cache-cleanup-on-quit ()
+(defun org-srs-review-cache-cleanup-on-quit ()
   "Clear the review cache when quitting a review session."
   (when (and (org-srs-review-cache-p) (not (org-srs-reviewing-p)))
     (org-srs-review-cache-clear)))

@@ -60,7 +60,7 @@
 (defvar org-srs-review-after-rate-hook nil
   "Hook run after a review item has been rated.")
 
-(cl-defun org-srs-review-rate (rating &rest args)
+(defun org-srs-review-rate (rating &rest args)
   "Rate the current review item specified by ARGS with RATING."
   (let ((item (or args org-srs-review-item)))
     (if org-srs-review-item
