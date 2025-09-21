@@ -42,7 +42,7 @@
 
 (require 'fsrs)
 
-(cl-defun org-srs-algorithm-fsrs-optimizer-insert-review-log (markers buffer)
+(defun org-srs-algorithm-fsrs-optimizer-insert-review-log (markers buffer)
   "Insert review logs from MARKERS into BUFFER in CSV format."
   (cl-loop initially (with-current-buffer buffer
                        (insert "review_time,card_id,review_rating,review_state")

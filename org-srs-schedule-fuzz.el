@@ -78,7 +78,7 @@
         (unit-seconds (org-srs-time-desc-seconds unit)))
     (list (* (round interval-seconds unit-seconds) unit-seconds) :sec)))
 
-(cl-defun org-srs-schedule-fuzz-calculate-interval (time-scheduled time-review)
+(defun org-srs-schedule-fuzz-calculate-interval (time-scheduled time-review)
   "Calculate a random fuzzing interval based on TIME-SCHEDULED and TIME-REVIEW."
   (cl-flet ((cl-clamp (number min max) (if (< number min) min (if (> number max) max number))))
     (let ((interval (org-srs-time-desc-seconds

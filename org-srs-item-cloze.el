@@ -277,7 +277,7 @@ fields."
              else do (goto-char (funcall match-bound 0))
              else do (goto-char line-bound))))
 
-(cl-defun org-srs-item-uncloze-default (start end)
+(defun org-srs-item-uncloze-default (start end)
   "Remove all cloze deletions between START and END."
   (save-excursion
     (cl-loop initially (goto-char start)

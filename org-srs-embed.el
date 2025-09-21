@@ -154,7 +154,7 @@
       (if id (insert "@@" tag ":" { { id } { "@@") (insert "@@" tag ":" { { "@@")))))
 
 ;;;###autoload
-(cl-defun org-srs-embed-cloze-dwim ()
+(defun org-srs-embed-cloze-dwim ()
   "Like `org-srs-item-cloze', but use the non-intrusive cloze markers."
   (interactive)
   (let ((org-srs-item-cloze-function #'org-srs-embed-cloze))
@@ -242,7 +242,7 @@ embedded cloze deletions when no active region is present."
     (cl-call-next-method)))
 
 ;;;###autoload
-(cl-defun org-srs-embed-uncloze-dwim ()
+(defun org-srs-embed-uncloze-dwim ()
   "Like `org-srs-item-uncloze', but remove the non-intrusive cloze markers."
   (interactive)
   (let ((org-srs-item-uncloze-function #'org-srs-embed-uncloze))
@@ -506,7 +506,7 @@ Return the number of comments removed."
   :type 'regexp)
 
 ;;;###autoload
-(cl-defun org-srs-embed-dwim (arg)
+(defun org-srs-embed-dwim (arg)
   "Perform context-aware operations on the current element or embedded entry.
 
 If point is on the header of an already exported entry, jump to the exported
