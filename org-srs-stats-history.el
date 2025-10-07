@@ -97,10 +97,10 @@ INCREMENT determines the step between dates."
                       (cl-values labels values)))))
 
 ;;;###autoload
-(defun org-srs-stats-history-reviews (source)
+(defun org-srs-stats-history-reviews (source length)
   "Display a chart of the number of reviews per date for the given SOURCE."
-  (interactive (list (org-srs-review-source-dwim)))
-  (cl-multiple-value-bind (labels values) (org-srs-stats-history source)
+  (interactive (list (org-srs-review-source-dwim) 60))
+  (cl-multiple-value-bind (labels values) (org-srs-stats-history source :length length)
     (chart-bar-quickie 'vertical "Org-srs Statistics: Reviews" labels "Date" (mapcar #'length values) "Reviews")))
 
 ;;;###autoload

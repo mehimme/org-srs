@@ -46,7 +46,7 @@
                          (org-split-string (match-string-no-properties 1) " *| *"))
            for column from 2
            when (string-match-p "\\`[a-zA-Z][_a-zA-Z0-9]*\\'" name)
-           collect (cons (intern (cl-substitute ?- ?_ name)) column)))
+           collect (cons (intern (subst-char-in-string ?_ ?- name)) column)))
 
 (defconst org-srs-table-readable-field-regexp (rx bos (or (and ":" (+ anychar)) (and (? "-") (+ digit) (? "." (* digit)) (? "e" (? "-") (+ digit)))) eos)
   "Regular expression matching fields in tables that can be read as Lisp values.")
@@ -154,7 +154,7 @@ OFFSET specifies how many rows to move from the starred line and defaults to 0."
   "Create a new Org table from ALIST of column names to values."
   (cl-loop initially (insert "| ! |")
            for (name . nil) in alist
-           do (insert (cl-substitute ?_ ?- (prin1-to-string name t)) " | "))
+           do (insert (subst-char-in-string ?- ?_ (prin1-to-string name t)) " | "))
   (newline)
   (insert "|-")
   (newline)
