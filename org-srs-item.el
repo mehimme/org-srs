@@ -340,5 +340,17 @@ COMMAND specifies the confirmation command to check and defaults to
   :group 'org-srs-item
   :type 'function)
 
+(defun org-srs-item-call-with-transient-modifications (thunk)
+  "Call THUNK and then undo all changes it made to the current buffer."
+  (let ((buffer-undo-list nil))
+    (undo-boundary)
+    (unwind-protect (funcall thunk)
+      (primitive-undo (length buffer-undo-list) buffer-undo-list))))
+
+(defmacro org-srs-item-with-transient-modifications (&rest body)
+  "Execute BODY and then undo all changes it made to the current buffer."
+  (declare (indent 0))
+  `(org-srs-item-call-with-transient-modifications (lambda () . ,body)))
+
 (provide 'org-srs-item)
 ;;; org-srs-item.el ends here

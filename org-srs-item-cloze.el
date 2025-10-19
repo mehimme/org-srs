@@ -146,7 +146,7 @@
         text (string-width (buffer-substring (overlay-start overlay) (overlay-end overlay))))
      text)))
 
-(cl-defun org-srs-item-cloze-put-overlay (start end &optional (text ""))
+(defun org-srs-item-cloze-put-overlay (start end text)
   "Create a new cloze overlay from START to END with TEXT."
   (cl-check-type text string)
   (let ((overlay (make-overlay start end)))
@@ -204,10 +204,7 @@ TEXT is the string containing the answer to be shown between brackets."
            for cloze in (progn (org-srs-item-narrow) (org-srs-item-cloze-collect))
            for (id . (start end text hint)) = cloze
            if (or (null cloze-id-set) (member id cloze-id-set))
-           collect (cons (org-srs-item-cloze-put-overlay
-                          start end
-                          (org-srs-item-cloze-current hint))
-                         cloze)
+           collect (cons (org-srs-item-cloze-put-overlay start end (org-srs-item-cloze-current hint)) cloze)
            into hidden-clozes
            else
            do (cl-ecase visibility
@@ -216,7 +213,6 @@ TEXT is the string containing the answer to be shown between brackets."
            finally
            (cl-loop with centeredp = (org-srs-item-cloze-centered-in-review-p)
                     for (overlay _id start _end text _hint) in hidden-clozes
-                    do (cl-assert (overlayp overlay))
                     unless (> (length hidden-clozes) 1)
                     do (goto-char start)
                     and when (cl-etypecase centeredp

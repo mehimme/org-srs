@@ -42,6 +42,7 @@
 (require 'org-srs-item)
 (require 'org-srs-item-card)
 (require 'org-srs-item-cloze)
+(require 'org-srs-item-cloze-latex)
 
 (require 'org-srs-review)
 (require 'org-srs-review-rate)
