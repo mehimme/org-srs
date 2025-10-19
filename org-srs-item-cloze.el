@@ -173,10 +173,7 @@ HINT is an optional string shown between brackets to help with the answer."
   "Return the text displayed in overlays of cloze deletions not being answered.
 
 TEXT is an optional string shown between brackets to indicate hidden content."
-  (concat
-   (propertize "[" 'face 'bold)
-   (or text "   ")
-   (propertize "]" 'face 'bold)))
+  (propertize (format "[%s]" (or text "   ")) 'face 'bold))
 
 (defun org-srs-item-cloze-answer (text)
   "Return the text showing the answer in the overlay of a cloze deletion.

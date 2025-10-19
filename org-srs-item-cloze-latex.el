@@ -68,6 +68,22 @@
            when (eq (overlay-get overlay 'org-overlay-type) 'org-latex-overlay)
            collect overlay))
 
+(defun org-srs-item-cloze-latex-process-faces (text)
+  "Convert faces in TEXT to their LaTeX equivalents."
+  (cl-flet ((bold-verbatim (text)
+              (format "\\texttt{\\textbf{%s}}" (replace-regexp-in-string (rx " ") "\\ " text t t))))
+    (cl-loop with length = (length text)
+             for left = 0 then (if (eq face previous-face) left (1- right))
+             for right to length
+             for previous-face = (get-text-property 0 'face text) then face
+             for face = (when (< right length) (get-text-property right 'face text))
+             unless (eq face previous-face)
+             concat (funcall
+                     (cl-case previous-face
+                       (bold #'bold-verbatim)
+                       (t #'identity))
+                     (substring text left right)))))
+
 (define-advice org--latex-preview-region (:around (fun beg end) org-srs-item-cloze-latex)
   (org-srs-item-with-transient-modifications
     (cl-loop initially (setf beg (copy-marker beg) end (copy-marker end))
@@ -87,7 +103,7 @@
                        (goto-char cloze-end) (org-inside-LaTeX-fragment-p))
              do (when-let ((display (funcall org-srs-item-cloze-latex-display cloze)))
                   (goto-char cloze-end)
-                  (insert (org-srs-item-cloze-latex-wrap display cloze-id))
+                  (insert (org-srs-item-cloze-latex-wrap (org-srs-item-cloze-latex-process-faces display) cloze-id))
                   (delete-region cloze-start cloze-end)
                   (push (cons (copy-marker cloze-start) (org-srs-item-cloze-latex-wrapper-regexp cloze-id)) position-regexps))
              finally
@@ -130,34 +146,36 @@
 (define-advice org-srs-item-cloze-overlay-text (:around (fun overlay) org-srs-item-cloze-latex)
   (if (consp overlay)
       (cl-destructuring-bind (position . regexp) overlay
-        (cl-destructuring-bind (overlay) (org-srs-item-cloze-latex-overlays position)
-          (let ((string (overlay-get overlay 'org-srs-item-cloze-latex)))
-            (cl-check-type string string)
-            (string-match regexp string)
-            (match-string 1 string))))
+        (cl-destructuring-bind (&optional overlay) (org-srs-item-cloze-latex-overlays position)
+          (when overlay
+            (let ((string (overlay-get overlay 'org-srs-item-cloze-latex)))
+              (cl-check-type string string)
+              (string-match regexp string)
+              (match-string 1 string)))))
     (funcall fun overlay)))
 
 (define-advice \(setf\ org-srs-item-cloze-overlay-text\) (:around (fun text overlay) org-srs-item-cloze-latex)
   (if (consp overlay)
       (cl-destructuring-bind (position . regexp) overlay
-        (cl-destructuring-bind (overlay) (org-srs-item-cloze-latex-overlays position)
-          (let ((string (overlay-get overlay 'org-srs-item-cloze-latex))
-                (start (copy-marker (overlay-start overlay)))
-                (end (copy-marker (overlay-end overlay))))
-            (cl-check-type string string)
-            (org-srs-item-with-transient-modifications
-              (org-clear-latex-preview start end)
-              (delete-region (1+ start) (1- end))
-              (goto-char (1+ start))
-              (insert (substring string 1 -1))
-              (cl-loop initially (goto-char start)
-                       while (re-search-forward regexp end t)
-                       do (save-excursion (replace-match text t t nil 1)))
-              (org--latex-preview-region start end)
-              (cl-destructuring-bind (overlay) (org-srs-item-cloze-latex-overlays start end)
-                (overlay-put overlay 'org-srs-item-cloze-latex (buffer-substring start end))
-                (overlay-put overlay 'modification-hooks nil)
-                overlay)))))
+        (cl-destructuring-bind (&optional overlay) (org-srs-item-cloze-latex-overlays position)
+          (when overlay
+            (let ((string (overlay-get overlay 'org-srs-item-cloze-latex))
+                  (start (copy-marker (overlay-start overlay)))
+                  (end (copy-marker (overlay-end overlay))))
+              (cl-check-type string string)
+              (org-srs-item-with-transient-modifications
+                (org-clear-latex-preview start end)
+                (delete-region (1+ start) (1- end))
+                (goto-char (1+ start))
+                (insert (substring string 1 -1))
+                (cl-loop initially (goto-char start)
+                         while (re-search-forward regexp end t)
+                         do (save-excursion (replace-match (org-srs-item-cloze-latex-process-faces text) t t nil 1)))
+                (org--latex-preview-region start end)
+                (cl-destructuring-bind (overlay) (org-srs-item-cloze-latex-overlays start end)
+                  (overlay-put overlay 'org-srs-item-cloze-latex (buffer-substring start end))
+                  (overlay-put overlay 'modification-hooks nil)
+                  overlay))))))
     (funcall fun text overlay)))
 
 (provide 'org-srs-item-cloze-latex)
