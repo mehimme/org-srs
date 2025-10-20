@@ -99,15 +99,16 @@
     (cl-loop with position-regexps = nil
              for cloze in (nreverse (org-srs-item-cloze-collect beg end))
              for (cloze-id cloze-start cloze-end) = cloze
-             when (and (goto-char cloze-start) (org-inside-LaTeX-fragment-p)
-                       (goto-char cloze-end) (org-inside-LaTeX-fragment-p))
-             do (when-let ((display (funcall org-srs-item-cloze-latex-display cloze)))
-                  (goto-char cloze-end)
-                  (insert (org-srs-item-cloze-latex-wrap (org-srs-item-cloze-latex-process-faces display) cloze-id))
-                  (delete-region cloze-start cloze-end)
-                  (push (cons (copy-marker cloze-start) (org-srs-item-cloze-latex-wrapper-regexp cloze-id)) position-regexps))
+             when (and (goto-char cloze-start) (org-inside-LaTeX-fragment-p) (goto-char cloze-end) (org-inside-LaTeX-fragment-p))
+             sum 1 into count-total and
+             count (when-let ((display (funcall org-srs-item-cloze-latex-display cloze)))
+                     (goto-char cloze-end)
+                     (insert (org-srs-item-cloze-latex-wrap (org-srs-item-cloze-latex-process-faces display) cloze-id))
+                     (delete-region cloze-start cloze-end)
+                     (push (cons (copy-marker cloze-start) (org-srs-item-cloze-latex-wrapper-regexp cloze-id)) position-regexps))
+             into count-processed
              finally
-             (cl-loop initially (org-clear-latex-preview beg end) (funcall fun beg end)
+             (cl-loop initially (when (= count-processed count-total) (org-clear-latex-preview beg end) (funcall fun beg end))
                       for (position . nil) in position-regexps
                       for (overlay) = (org-srs-item-cloze-latex-overlays position)
                       for element = (save-excursion (goto-char position) (org-element-context))
