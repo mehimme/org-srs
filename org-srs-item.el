@@ -92,18 +92,22 @@
     (org-srs-item-link-search (org-srs-item-link item id))
     (point-marker)))
 
-(defun org-srs-item-goto (&rest args)
-  "Switch buffer and move point to ITEM specified by ARGS.
-
-ARGS are passed to `org-srs-item-marker' to locate the review item."
-  (let* ((marker (apply #'org-srs-item-marker args))
-         (buffer (marker-buffer marker)))
-    (cl-assert (eq (window-buffer) (current-buffer)))
+(cl-defun org-srs-item-goto-marker (marker)
+  "Switch buffer and move point to MARKER."
+  (let ((buffer (marker-buffer marker)))
     (unless (eq buffer (current-buffer))
+      (cl-assert (eq (window-buffer) (current-buffer)))
       (switch-to-buffer buffer nil t)
-      (cl-assert (eq (window-buffer) buffer)))
-    (cl-assert (eq (current-buffer) buffer))
+      (cl-assert (eq (window-buffer) buffer))
+      (cl-assert (eq (current-buffer) buffer)))
     (goto-char marker)))
+
+(defun org-srs-item-goto (item &rest args)
+  "Switch buffer and move point to the review item specified by ITEM and ARGS.
+
+ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
+  (when args (cl-assert (eq (window-buffer) (current-buffer))))
+  (org-srs-item-goto-marker (apply #'org-srs-item-marker item args)))
 
 (defmacro org-srs-item-save-selected-window-excursion (&rest body)
   "Execute BODY while preserving selected window and buffer."
@@ -335,6 +339,18 @@ COMMAND specifies the confirmation command to check and defaults to
   "Method to confirm the current review item and reveal its answer."
   :group 'org-srs-item
   :type 'function)
+
+(defun org-srs-item-call-with-transient-modifications (thunk)
+  "Call THUNK and then undo all changes it made to the current buffer."
+  (let ((buffer-undo-list nil))
+    (undo-boundary)
+    (unwind-protect (funcall thunk)
+      (primitive-undo (length buffer-undo-list) buffer-undo-list))))
+
+(defmacro org-srs-item-with-transient-modifications (&rest body)
+  "Execute BODY and then undo all changes it made to the current buffer."
+  (declare (indent 0))
+  `(org-srs-item-call-with-transient-modifications (lambda () . ,body)))
 
 (provide 'org-srs-item)
 ;;; org-srs-item.el ends here

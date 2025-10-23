@@ -146,7 +146,7 @@
         text (string-width (buffer-substring (overlay-start overlay) (overlay-end overlay))))
      text)))
 
-(cl-defun org-srs-item-cloze-put-overlay (start end &optional (text ""))
+(defun org-srs-item-cloze-put-overlay (start end text)
   "Create a new cloze overlay from START to END with TEXT."
   (cl-check-type text string)
   (let ((overlay (make-overlay start end)))
@@ -173,10 +173,7 @@ HINT is an optional string shown between brackets to help with the answer."
   "Return the text displayed in overlays of cloze deletions not being answered.
 
 TEXT is an optional string shown between brackets to indicate hidden content."
-  (concat
-   (propertize "[" 'face 'bold)
-   (or text "   ")
-   (propertize "]" 'face 'bold)))
+  (propertize (format "[%s]" (or text "   ")) 'face 'bold))
 
 (defun org-srs-item-cloze-answer (text)
   "Return the text showing the answer in the overlay of a cloze deletion.
@@ -204,10 +201,7 @@ TEXT is the string containing the answer to be shown between brackets."
            for cloze in (progn (org-srs-item-narrow) (org-srs-item-cloze-collect))
            for (id . (start end text hint)) = cloze
            if (or (null cloze-id-set) (member id cloze-id-set))
-           collect (cons (org-srs-item-cloze-put-overlay
-                          start end
-                          (org-srs-item-cloze-current hint))
-                         cloze)
+           collect (cons (org-srs-item-cloze-put-overlay start end (org-srs-item-cloze-current hint)) cloze)
            into hidden-clozes
            else
            do (cl-ecase visibility
@@ -216,7 +210,6 @@ TEXT is the string containing the answer to be shown between brackets."
            finally
            (cl-loop with centeredp = (org-srs-item-cloze-centered-in-review-p)
                     for (overlay _id start _end text _hint) in hidden-clozes
-                    do (cl-assert (overlayp overlay))
                     unless (> (length hidden-clozes) 1)
                     do (goto-char start)
                     and when (cl-etypecase centeredp
@@ -372,26 +365,39 @@ word is at point."
   (interactive)
   (apply #'org-srs-item-uncloze-interactively (org-element-at-point)))
 
-(defun org-srs-item-cloze-update-entry (&optional inherit-history-p)
+(cl-defun org-srs-item-cloze-remove-duplicates (list &key (key #'identity) (test #'eql))
+  "Like `cl-remove-duplicates', but preserve each element's first occurrence order.
+
+KEY is a function used to extract keys for comparison.
+TEST is a function used to compare keys for equality.
+
+Return a copy of LIST with all duplicate elements removed."
+  (cl-loop for elem in list
+           unless (cl-member (funcall key elem) result :test test :key key)
+           collect elem into result
+           finally (cl-return result)))
+
+(defun org-srs-item-cloze-update-entry (&optional map-history-p)
   "Update review items for cloze deletions in the current entry.
 
-When INHERIT-HISTORY-P is non-nil, preserve existing review history by
-transferring it to matching cloze items."
+When MAP-HISTORY-P is non-nil, the review histories of original cloze deletions
+will be inherited based on their positions sequentially."
   (let* ((start (org-srs-entry-beginning-position))
          (end (org-srs-entry-end-position))
          (items (cl-delete 'cloze (cl-mapcar #'cl-first (org-srs-query '(and) (cons start end))) :key #'car :test-not #'eq))
-         (clozes (org-srs-item-cloze-collect start end)))
-    (setf inherit-history-p (if (= (length items) (length clozes))
-                                (unless (equal (mapcar #'cl-second items) (mapcar #'cl-first clozes))
-                                  (cl-etypecase inherit-history-p
-                                    (boolean inherit-history-p)
-                                    (function (funcall inherit-history-p))))
-                              (cl-assert (not (eq inherit-history-p t)))))
-    (if inherit-history-p
+         (clozes (org-srs-item-cloze-remove-duplicates (org-srs-item-cloze-collect start end) :key #'cl-first :test #'eq)))
+    (setf map-history-p (if (= (length items) (length clozes))
+                            (unless (equal (mapcar #'cl-second items) (mapcar #'cl-first clozes))
+                              (cl-etypecase map-history-p
+                                (boolean map-history-p)
+                                (function (funcall map-history-p))))
+                          (cl-assert (not (eq map-history-p t)))))
+    (if map-history-p
         (cl-loop for item in items
+                 for marker in (mapcar #'org-srs-item-marker items)
                  for (identifier) in clozes
                  do
-                 (org-srs-item-goto item)
+                 (org-srs-item-goto-marker marker)
                  (beginning-of-line)
                  (cl-assert (looking-at org-srs-item-header-regexp))
                  (replace-match
@@ -439,7 +445,7 @@ delete, or modify a cloze deletion."
               (progn (update-cloze bounds) (org-srs-item-cloze-update-entry t))
             (org-srs-item-cloze-update-entry
              (when (called-interactively-p 'interactive)
-               (apply-partially #'y-or-n-p "Sequentially inherit review history from before the cloze modification?"))))
+               (apply-partially #'y-or-n-p "Positionally inherit the review histories of cloze deletions?"))))
         (cl-loop initially (org-srs-item-cloze-update-entry nil)
                  for bounds in (cl-loop for (nil start end) in (org-srs-item-cloze-collect (org-srs-entry-beginning-position) (org-srs-entry-end-position))
                                         collect (cons (copy-marker start) (copy-marker end)))
